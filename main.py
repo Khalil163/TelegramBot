@@ -14,5 +14,5 @@ admin.register_handlers_admin(dp)
 order.register_handlers_order(dp)
 other.register_handlers_other(dp)
 
-
+print('Hello')
 executor.start_polling(dp, skip_updates=True, on_startup=start_on)
