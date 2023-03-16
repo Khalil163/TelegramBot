@@ -319,12 +319,12 @@ async def answer_q3(message: types.Message, state: FSMContext):
 
         elif message.photo is not None:
             try:
-                msg = await bot.send_photo(chat_id=5412070881, photo=message.photo[-1].file_id,
+                msg = await bot.send_photo(chat_id=1176527696, photo=message.photo[-1].file_id,
                                            caption=text, parse_mode='html',
                                            reply_markup=await client_kb.acs_butt(message.from_user.id))
                 await sql.add_msg(message.from_user.id, msg.message_id)
             except IndexError:
-                msg = await bot.send_document(chat_id=5412070881, document=message.document.file_id,
+                msg = await bot.send_document(chat_id=1176527696, document=message.document.file_id,
                                               caption=text, parse_mode='html',
                                               reply_markup=await client_kb.acs_butt(message.from_user.id))
                 await sql.add_msg(message.from_user.id, msg.message_id)
