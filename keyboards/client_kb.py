@@ -126,27 +126,46 @@ async def get_price(user_id):
     long = mas[4]
     lat = mas[5]
     number = mas[0][3]
-    data = {
-        "route": [
-            [
-                49.408787,
-                53.518245
-            ],
-            [
-                long,
-                lat
-            ]
+
+    res = {
+        "items": [
+            {
+                "quantity": 1,
+                'height ': 0.5,
+                'length': 0.5,
+                'width ': 0.5,
+            }
         ],
-        "requirements": {},
-        "phone": '+79649687004',
-        "selected_class": "express"
+        "requirements": {
+            "taxi_class": 'express'
+        },
+        "route_points": [
+            {
+                "coordinates": [
+                    49.408787,
+                    53.518245
+                ],
+                "fullname": 'Россия, Тольятти, улица Комсомольская, 62c5'
+            },
+            {
+                "coordinates": [
+                    long,
+                    lat
+                ],
+                "fullname": f'{mas[11]}'
+            }
+        ],
+        "skip_door_to_door": False
     }
-    res = requests.post('https://business.taxi.yandex.ru/api/1.0/estimate', headers={"Authorization": API_TAXI},
-                        json=data)
+
+    res = requests.post(f'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/check-price',
+                        headers={"Authorization": f'Bearer {API_TAXI}', 'Accept-Language': 'ru'}, json=res)
+
+    print(long, lat, mas[11])
+    print(res.text)
     obj = json.loads(res.text)
-    a = str(obj['service_levels'][0]['price']).replace('руб.', '')
-    offer = str(obj['offer'])
-    await sql.add_offer(user_id, offer)
+    a = str(obj['price'])
+    print(a)
     return a
 
 

@@ -13,7 +13,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 tz_tlt = pytz.timezone('Europe/Samara')
-lim1 = time(9, 30)
+lim1 = time(0, 0)
 lim2 = time(22, 0)
 
 
@@ -85,19 +85,19 @@ async def set_loc(message: types.Message, state: FSMContext):
             locate = Yandex(api_key=api_geo).reverse("%s, %s" % (message.location.latitude, message.location.longitude))
             await message.answer(f'Это ваш адрес?\n{locate}', reply_markup=client_kb.kb_right)
             await sql.add_loc(message.from_user.id, message.location.longitude, message.location.latitude)
+            await sql.add_address(message.from_user.id, f'{locate}')
             delivery = int(await client_kb.get_price(message.from_user.id))
             await sql.add_deliv(message.from_user.id, delivery)
-            await sql.add_address(message.from_user.id, f'{locate}')
             await FSMUsers.start.set()
         else:
             locate = Yandex(api_key=api_geo).geocode(f'{message.text}, Тольятти, Россия')
             if str(locate.address).split(',')[0] == 'Тольятти':
                 return await message.answer('Указан неверный адрес\nВведите адрес:')
-            await sql.add_loc(message.from_user.id, locate.longitude, locate.latitude)
-            delivery = int(await client_kb.get_price(message.from_user.id))
-            await sql.add_deliv(message.from_user.id, delivery)
             await message.answer(f'Это ваш адрес?\n{locate.address}', reply_markup=client_kb.kb_right)
+            await sql.add_loc(message.from_user.id, locate.longitude, locate.latitude)
             await sql.add_address(message.from_user.id, f'{locate.address}')
+            delivery = float(await client_kb.get_price(message.from_user.id))
+            await sql.add_deliv(message.from_user.id, delivery)
             await FSMUsers.start.set()
     else:
         await message.answer(
