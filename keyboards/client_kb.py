@@ -155,7 +155,7 @@ async def get_price(user_id):
                 "fullname": f'{mas[11]}'
             }
         ],
-        "skip_door_to_door": False
+        "skip_door_to_door": False 
     }
 
     res = requests.post(f'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/check-price',
