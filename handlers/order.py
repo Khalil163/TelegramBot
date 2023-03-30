@@ -14,51 +14,56 @@ async def access(call: types.CallbackQuery, callback_data: dict):
     old = await client_kb.check(int(delivery[6]), id)
     num = str(delivery[3])
     state = 'Заказ готовится'
-    await sql.add_state(id,state)
+
 
     if num[0] == '7':
         num = '+' + num
 
     if callback_data.get('category') == 'true':
-        if int(callback_data.get('price')) > 0:
+        if float(callback_data.get('price')) > 0:
             locate = await sql.get_address(id)
-            text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b>Заказ готовится'
-            await bot.send_message(id, '<b>Оплата подтверждена!</b>\nДоставка заказа займет от 30 мин', reply_markup= client_kb.kb_state, parse_mode='html')
-            await bot.edit_message_caption(call.from_user.id, message_id=msg, caption=text, reply_markup=await client_kb.express(id), parse_mode='html')
+            text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ готовится'
+            await bot.send_message(id, '<b>Мы стараемся, чтобы ваш заказ был приготовлен как можно быстрее!</b>\nДоставка заказа займет от 15 мин', reply_markup= client_kb.kb_state, parse_mode='html')
+            await bot.edit_message_text(text, call.from_user.id, message_id=msg, reply_markup=await client_kb.express(id), parse_mode='html')
 
         else:
             text = f'<b>Cамовывоз:</b>\n{old}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ готовится'
-            await bot.edit_message_caption(call.from_user.id, message_id=msg,caption=text,reply_markup=await client_kb.fd_ready(id), parse_mode='html')
-            await bot.send_message(id, '<b>Оплата подтверждена!</b>\nВаш заказ уже готовится\n\nМы сообщим как будет всё готово.',
+            await bot.edit_message_text(text, call.from_user.id, message_id=msg, reply_markup=await client_kb.fd_ready(id), parse_mode='html')
+            await bot.send_message(id, '<b>Мы стараемся, чтобы ваш заказ был приготовлен как можно быстрее!</b>\n\nМы сообщим как будет всё готово.',
                                    reply_markup=client_kb.kb_state, parse_mode='html')
 
-    else:
-        text = f'<b>Заказ:</b>\n{old}<b>Тел:</b> {num}\n\n<b>Статус:</b> Отменен'
-        await bot.edit_message_caption(call.from_user.id, message_id=msg, caption=text, parse_mode='html')
-        await bot.send_message(id, 'К сожалению ваша оплата не прошла.\nЕсли есть вопросы звоните: +79649687004', reply_markup=client_kb.kb_client)
-        await sql.add_state(id, 0)
-        await sql.empty_cart(id)
 
 
 #@dp.callback_query_handler(cb.filter(type='taxi_o'))
 async def order_taxi(call: types.CallbackQuery, callback_data: dict):
+
     id = int(callback_data.get('category'))
     delivery = (await sql.get_info(id))
     msg = int(delivery[7])
     old = await client_kb.check(int(delivery[6]), id)
     num = str(delivery[3])
-    state = 'Ожидаем курьера...'
-    await sql.add_state(id,state)
+    #state = 'Ожидаем курьера...'
+
 
     if num[0] == '7':
         num = '+' + num
 
     await req_api.draft_order(id)
     await req_api.proc_order(id)
+
+    state = await req_api.state_order(id)
+
+    await sql.add_state(id, state)
+
+    await sql.add_state(id, state)
+
     await call.answer('Вы заказали такси')
     locate = await sql.get_address(id)
-    text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Ожидаем курьера'
-    await bot.edit_message_caption(call.from_user.id, message_id=msg, caption=text, reply_markup=await client_kb.kb_finish(id), parse_mode='html')
+    text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> {state}'
+
+    await bot.edit_message_text(text, call.from_user.id, message_id=msg, reply_markup=await client_kb.kb_finish(id), parse_mode='html')
+
+
     await call.message.edit_reply_markup(reply_markup=await client_kb.canc_express(id))
 
 
@@ -69,18 +74,21 @@ async def canc_taxi(call: types.CallbackQuery, callback_data: dict):
     msg = int(delivery[7])
     old = await client_kb.check(int(delivery[6]), id)
     num = str(delivery[3])
-    state = 'Ожидание...'
+    state = await req_api.state_order(id)
+
+    await sql.add_state(id, state)
     await sql.add_state(id,state)
 
     if num[0] == '7':
         num = '+' + num
+
     await req_api.cancel_order(id)
 
     await call.answer('Отмена такси')
 
     locate = await sql.get_address(id)
-    text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Отменено такси'
-    await bot.edit_message_caption(call.from_user.id, message_id=msg, caption=text,
+    text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> {state}'
+    await bot.edit_message_text(text, call.from_user.id, message_id=msg,
                                    reply_markup=await client_kb.kb_finish(id), parse_mode='html')
 
 
@@ -100,7 +108,7 @@ async def ready(call: types.CallbackQuery, callback_data: dict):
     text = f'<b>Cамовывоз:</b>\n{old}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Ожидает выдачи...'
 
     await bot.send_message(id, '<b>Ваш заказ готов!</b>', parse_mode='html')
-    await bot.edit_message_caption(call.from_user.id, message_id=msg, caption=text,
+    await bot.edit_message_text(text, call.from_user.id, message_id=msg,
                                 reply_markup=await client_kb.kb_pkp(id), parse_mode='html')
 
 
@@ -121,9 +129,9 @@ async def ready_dv(call: types.CallbackQuery, callback_data: dict):
 
     text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ завершен'
 
-    await bot.edit_message_caption(call.from_user.id, message_id=msg, caption=text, parse_mode='html')
+    await bot.edit_message_text(text, call.from_user.id, message_id=msg,  parse_mode='html')
     await call.answer('Заказ завершен')
-    await bot.send_message(id, 'Заказ в пути.\nПриятного аппетита!', reply_markup=client_kb.kb_client)
+    await bot.send_message(id, 'Благодарим за заказ.\nПриятного аппетита!', reply_markup=client_kb.kb_client)
     await sql.empty_cart(id)
 
 
@@ -143,7 +151,7 @@ async def ready_pkp(call: types.CallbackQuery, callback_data: dict):
 
     text = f'<b>Cамовывоз:</b>\n{old}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ завершен'
     await bot.send_message(id, 'Спасибо за заказ!\nБудем ждать новых заказов!', reply_markup=client_kb.kb_client)
-    await bot.edit_message_caption(call.from_user.id, message_id=msg, caption=text, parse_mode='html')
+    await bot.edit_message_text(text, call.from_user.id, message_id=msg,  parse_mode='html')
     await call.answer('Заказ завершен')
     await sql.empty_cart(id)
 

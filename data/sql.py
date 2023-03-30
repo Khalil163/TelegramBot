@@ -24,7 +24,7 @@ def start_basa():
     base.execute('CREATE TABLE IF NOT EXISTS menu(name TEXT PRIMARY KEY, price INT, item TEXT, stoplist TEXT)')
     base.commit()
     mod.execute('CREATE TABLE IF NOT EXISTS users(name TEXT, id TEXT PRIMARY KEY, access TEXT, number TEXT, long INT, '
-                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT)')
+                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT, state_pay INT)')
     mod.commit()
 
     cart.execute('CREATE TABLE IF NOT EXISTS cart(user_id TEXT, name TEXT, count INT, price INT)')
@@ -88,7 +88,7 @@ async def del_item(data):
 
 
 async def add_user(name, id, access):  # Moders
-    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     mod.commit()
 
 
@@ -175,6 +175,10 @@ async def add_msg(id, msg):
     m_cur.execute('UPDATE users SET msg = ? WHERE id == ?', [msg,  id])
     mod.commit()
 
+async def add_state_pay(id, state):
+    m_cur.execute('UPDATE users SET state_pay = ? WHERE id == ?', [state,  id])
+    mod.commit()
+
 
 async def add_cat(id, cat):
     m_cur.execute('UPDATE users SET cat = ? WHERE id == ?', [cat,  id])
@@ -209,4 +213,5 @@ async def add_offer(id, offer):
 async def get_offer(id):
     info = m_cur.execute('SELECT * FROM users WHERE id == ?', [id, ]).fetchone()
     return info[9]
+
 

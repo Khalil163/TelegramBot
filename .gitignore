@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 
 create__bot.py
+/data/yooMoney.py

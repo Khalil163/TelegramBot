@@ -1,9 +1,14 @@
+import random
+import string
+
 import pytz
 from aiogram import types, Dispatcher
+from aiogram.types import WebAppInfo
+import create__bot
 from create__bot import dp
 from data import sql
 from aiogram.dispatcher.filters import Text
-from aiogram.types import ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 from keyboards import client_kb
 from create__bot import bot
 from datetime import datetime, time
@@ -11,10 +16,15 @@ from geopy import Yandex
 from create__bot import api_geo
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from geopy.distance import geodesic as GD
+
+from data.p2p_messages import MESSAGES
+from yoomoney import Quickpay, Client
+
 
 tz_tlt = pytz.timezone('Europe/Samara')
 lim1 = time(0, 0)
-lim2 = time(22, 0)
+lim2 = time(21, 45)
 
 
 async def work_time():
@@ -81,23 +91,37 @@ async def get_loc(call: types.CallbackQuery):
 # @dp.message_handler(content_types=['location'])
 async def set_loc(message: types.Message, state: FSMContext):
     if await work_time():
+        point1 = (53.518245, 49.408787)
+
         if message.location is not None:
-            locate = Yandex(api_key=api_geo).reverse("%s, %s" % (message.location.latitude, message.location.longitude))
-            await message.answer(f'Это ваш адрес?\n{locate}', reply_markup=client_kb.kb_right)
-            await sql.add_loc(message.from_user.id, message.location.longitude, message.location.latitude)
-            await sql.add_address(message.from_user.id, f'{locate}')
-            delivery = int(await client_kb.get_price(message.from_user.id))
-            await sql.add_deliv(message.from_user.id, delivery)
-            await FSMUsers.start.set()
+            point2 = (message.location.latitude, message.location.longitude)
+
+            if GD(point1, point2) <= 25:
+                locate = Yandex(api_key=api_geo).reverse("%s, %s" % (message.location.latitude, message.location.longitude))
+                await message.answer(f'Это ваш адрес?\n{locate}', reply_markup=client_kb.kb_right)
+
+                await sql.add_loc(message.from_user.id, message.location.longitude, message.location.latitude)
+                await sql.add_address(message.from_user.id, f'{locate}')
+                delivery = int(await client_kb.get_price(message.from_user.id))
+                await sql.add_deliv(message.from_user.id, delivery)
+
+                await FSMUsers.start.set()
+            else:
+                return await message.answer('Работаем только в городе Тольятти.\nВведите адрес:')
+
         else:
             locate = Yandex(api_key=api_geo).geocode(f'{message.text}, Тольятти, Россия')
-            if str(locate.address).split(',')[0] == 'Тольятти':
-                return await message.answer('Указан неверный адрес\nВведите адрес:')
+            point2 = (locate.latitude, locate.longitude)
+
+            if GD(point1, point2) >= 25 or str(locate.address).split(',')[0] == 'Тольятти':
+                return await message.answer('Работаем только в городе Тольятти.\nВведите адрес:')
+
             await message.answer(f'Это ваш адрес?\n{locate.address}', reply_markup=client_kb.kb_right)
             await sql.add_loc(message.from_user.id, locate.longitude, locate.latitude)
             await sql.add_address(message.from_user.id, f'{locate.address}')
-            delivery = float(await client_kb.get_price(message.from_user.id))
+            delivery = int(await client_kb.get_price(message.from_user.id))
             await sql.add_deliv(message.from_user.id, delivery)
+
             await FSMUsers.start.set()
     else:
         await message.answer(
@@ -146,7 +170,7 @@ async def set_num(message: types.Message, state: FSMContext):
                     await sql.add_num(message.from_user.id, f'{message.contact.phone_number}')
                 except AttributeError:
                     await sql.add_num(message.from_user.id, message.text)
-                await message.answer('Теперь выберите блюда', reply_markup=client_kb.kb_order)
+                await message.answer('Теперь выберите блюда \n(Для покупки нажмите "КУПИТЬ")', reply_markup=client_kb.kb_order)
 
                 msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
                 await sql.add_msg(message.from_user.id, msg_cart.message_id)
@@ -158,7 +182,7 @@ async def set_num(message: types.Message, state: FSMContext):
 
         except AttributeError:
             await sql.add_num(message.from_user.id, message.contact.phone_number)
-            await message.answer('Теперь выберите блюда', reply_markup=client_kb.kb_order)
+            await message.answer('Теперь выберите блюда \n(Для покупки нажмите "КУПИТЬ")', reply_markup=client_kb.kb_order)
 
             msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
             await sql.add_msg(message.from_user.id, msg_cart.message_id)
@@ -257,6 +281,7 @@ async def empty_cart(message: types.Message):
 
 
 async def deliv_self(call: types.CallbackQuery):
+    await call.message.edit_reply_markup()
     await sql.add_deliv(call.from_user.id, 0)
     await bot.send_message(call.from_user.id, 'Отлично, теперь мне нужен ваш номер:', reply_markup=client_kb.share_num)
     await call.answer()
@@ -265,9 +290,30 @@ async def deliv_self(call: types.CallbackQuery):
 
 async def draft_buy(message: types.Message):
     if await work_time():
+
+        if await sql.get_cart(message.from_user.id) == []:
+            msg = (await sql.get_info(message.from_user.id))[7]
+            await bot.delete_message(chat_id=message.chat.id, message_id=msg)
+            await message.answer('Вы ничего не выбрали')
+            msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
+            return await sql.add_msg(message.from_user.id, msg_cart.message_id)
+
+        msg = (await sql.get_info(message.from_user.id))[7]
+        await bot.delete_message(chat_id=message.chat.id, message_id=msg)
         delivery = (await sql.get_info(message.from_user.id))[6]
         old = await client_kb.check(delivery, message.from_user.id)
-        await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html')
+        address = await sql.get_address(message.from_user.id)
+        address = str(address).split(',')
+        geo = address[0] + ' ' + address[1]
+
+        if delivery > 0:
+            msg = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}<b>Адрес:</b> {geo}', parse_mode='html', reply_markup=ReplyKeyboardRemove())
+            await sql.add_msg(message.from_user.id,msg.message_id)
+        else:
+
+            msg = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html', reply_markup=ReplyKeyboardRemove())
+            await sql.add_msg(message.from_user.id, msg.message_id)
+
         await bot.send_message(message.from_user.id, 'Оформляем заказ?', reply_markup=client_kb.draft_kb)
     else:
         await message.answer(
@@ -279,14 +325,37 @@ async def draft_buy(message: types.Message):
 async def ask_pay(call: types.CallbackQuery):
     if await work_time():
         if call.data == 'order_right':
+            letters_and_digits = string.ascii_lowercase + string.digits
+            rand_string = ''.join(random.sample(letters_and_digits, 10))
+
+            print(rand_string)
+            sum = await client_kb.total_price(call.from_user.id)
+
+            quickpay = Quickpay(
+                receiver='4100112327803607',
+                quickpay_form='shop',
+                targets='Lazzat',
+                paymentType='SB',
+                sum=sum,
+                label=rand_string,
+                successURL='https://t.me/lazzat_163_Bot'
+            )
+
+            await sql.add_state(call.from_user.id, rand_string)
+
+            claim_keyboard = InlineKeyboardMarkup(inline_keyboard=[[]])
+            claim_keyboard.add(InlineKeyboardButton(text='Оплатить',
+                                                    url=quickpay.redirected_url))
+            claim_keyboard.add(InlineKeyboardButton(text='Проверить оплату',
+                                                    callback_data='clt:claim:-:-:-'))
+
+
+
             await call.message.delete()
             await bot.send_message(call.from_user.id,
-                                   'Реквизиты для оплаты (Сбербанк):\n\nТел: *+79879459755*\nКарта: `2202 2061 9330 '
-                                   '0691`\nФИО: ХАЛИЛИЛЛОХ МАНАПЖАНОВИЧ A.\n\nНажмите на номер для '
-                                   'копирования!\n\nЖду чек перевода ...',
-                                   reply_markup=ReplyKeyboardRemove(), parse_mode='MarkDown')
+                                    MESSAGES['buy'],
+                                   reply_markup=claim_keyboard)
             await call.answer()
-            await FSMPickup.bill.set()
         else:
             await call.message.delete()
             await bot.send_message(call.from_user.id, 'Заказ отменен.\nБудем ждать вашего заказа!',
@@ -300,42 +369,77 @@ async def ask_pay(call: types.CallbackQuery):
 
 
 # @dp.message_handler(state=FSMPickup.bill)
-async def answer_q3(message: types.Message, state: FSMContext):
-    if await work_time():
-        delivery = (await sql.get_info(message.from_user.id))
-        old = await client_kb.check(int(delivery[6]), message.from_user.id)
-        num = str(delivery[3])
-        if num[0] == '7':
-            num = '+' + num
+async def answer_q3(call: types.CallbackQuery):
 
-        if int(delivery[6]) > 0:
-            locate = await sql.get_address(message.from_user.id)
-            text = f'Доставка:\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Не подтвержден'
-        else:
-            text = f'Cамовывоз:\n{old}\nТел: {num}\n\nСтатус: Не подтвержден'
+    data = await sql.get_info(call.message.chat.id)
+    bought = data[12]
+    label = data[10]
 
-        if message.text is not None:
-            return await bot.send_message(message.from_user.id, 'Отправьте чек!')
+    old = await client_kb.check(int(data[6]), call.from_user.id)
+    num = str(data[3])
+    if num[0] == '7':
+        num = '+' + num
 
-        elif message.photo is not None:
-            try:
-                msg = await bot.send_photo(chat_id=1176527696, photo=message.photo[-1].file_id,
-                                           caption=text, parse_mode='html',
-                                           reply_markup=await client_kb.acs_butt(message.from_user.id))
-                await sql.add_msg(message.from_user.id, msg.message_id)
-            except IndexError:
-                msg = await bot.send_document(chat_id=1176527696, document=message.document.file_id,
-                                              caption=text, parse_mode='html',
-                                              reply_markup=await client_kb.acs_butt(message.from_user.id))
-                await sql.add_msg(message.from_user.id, msg.message_id)
-
-        await bot.send_message(message.from_user.id, 'Проверяем оплату\nПару минут...')
-        await state.finish()
-
+    if int(data[6]) > 0:
+        locate = await sql.get_address(call.from_user.id)
+        text = f'Доставка:\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Оплачен!'
     else:
-        await message.answer(
-            '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
-            parse_mode='html')
+        text = f'Cамовывоз:\n{old}\nТел: {num}\n\nСтатус: Оплачен!'
+
+
+    client = Client(create__bot.pay_token)
+    history = client.operation_history(label=label)
+    try:
+        operation = history.operations[-1]
+        if operation.status == 'success':
+            await bot.delete_message(chat_id=call.from_user.id, message_id=call.message.message_id)
+            await sql.add_state_pay(call.message.chat.id, 1)
+            await bot.send_message(call.message.chat.id,
+                                   MESSAGES['successful_payment'])
+            msg = await bot.send_message(chat_id=1176527696, text=text, reply_markup=await client_kb.acs_butt(call.from_user.id), parse_mode='html')
+            await sql.add_msg(call.from_user.id, msg.message_id)
+            await sql.add_state_pay(call.from_user.id, 0)
+            await sql.add_state(call.from_user.id, 0)
+    except Exception as e:
+        await bot.send_message(call.message.chat.id,
+                               MESSAGES['wait_message'])
+
+
+
+
+
+
+    # # if await work_time():
+    #     delivery = (await sql.get_info(message.from_user.id))
+    #     old = await client_kb.check(int(delivery[6]), message.from_user.id)
+    #     num = str(delivery[3])
+    #     if num[0] == '7':
+    #         num = '+' + num
+    #
+
+    #
+    #     if message.text is not None:
+    #         return await bot.send_message(message.from_user.id, 'Отправьте чек!')
+    #
+    #     elif message.photo is not None:
+    #         try:
+    #             msg = await bot.send_photo(chat_id=1176527696, photo=message.photo[-1].file_id,
+    #                                        caption=text, parse_mode='html',
+    #                                        reply_markup=await client_kb.acs_butt(message.from_user.id))
+    #             await sql.add_msg(message.from_user.id, msg.message_id)
+    #         except IndexError:
+    #             msg = await bot.send_document(chat_id=1176527696, document=message.document.file_id,
+    #                                           caption=text, parse_mode='html',
+    #                                           reply_markup=await client_kb.acs_butt(message.from_user.id))
+    #             await sql.add_msg(message.from_user.id, msg.message_id)
+    #
+    #     await bot.send_message(message.from_user.id, 'Проверяем оплату\nПару минут...')
+    #     await state.finish()
+    #
+    # else:
+    #     await message.answer(
+    #         '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
+    #         parse_mode='html')
 
 
 # @dp.message_handler(text='Информация')
@@ -363,8 +467,8 @@ def register_handlers_client(dp: Dispatcher):
     dp.register_callback_query_handler(show_plus_minus, cb.filter(type='buy'))
     dp.register_callback_query_handler(add_cart, cb.filter(type='plus'))
     dp.register_callback_query_handler(minus_cart, cb.filter(type='minus'))
-    dp.register_message_handler(answer_q3, content_types=['photo', 'text', 'document'], state=FSMPickup.bill)
-    dp.register_callback_query_handler(ask_pay, Text(startswith='order'), state=None)
+    dp.register_callback_query_handler(answer_q3, cb.filter(type='claim'))
+    dp.register_callback_query_handler(ask_pay, Text(startswith='order'))
     dp.register_message_handler(empty_cart, Text('Очистить корзину'))
     dp.register_message_handler(ask_buy, Text('Заказать'))
     dp.register_message_handler(draft_buy, Text('Купить'))
