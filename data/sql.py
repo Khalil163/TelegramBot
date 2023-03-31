@@ -35,10 +35,9 @@ def start_basa():
 
 
 
-async def add_menu(state):  # menu
-    async with state.proxy() as data:
-        cur.execute('INSERT INTO menu VALUES (?, ?, ?, ?)', tuple(data.values()))
-        base.commit()
+async def add_menu(data):  # menu
+    cur.execute('INSERT INTO menu VALUES (?, ?, ?, ?)', tuple(data.values()))
+    base.commit()
 
 
 async def del_food(data):

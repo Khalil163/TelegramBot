@@ -128,5 +128,3 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-create__bot.py
-/data/yooMoney.py

@@ -91,7 +91,7 @@ kb_client = ReplyKeyboardMarkup(resize_keyboard=True)
 kb_adm = ReplyKeyboardMarkup(resize_keyboard=True)
 
 kb_client.add(b_order).add(site2).insert(b_time)
-kb_adm.add(b_order).add(b_loc, b_time).add(KeyboardButton('ModerMod'))
+kb_adm.add(b_order).add(site2, b_time).add(KeyboardButton('ModerMod'))
 
 ib_right = InlineKeyboardButton('Да', callback_data='loc_right')
 ib_err = InlineKeyboardButton('Нет', callback_data='loc_err')
@@ -105,6 +105,7 @@ b_buy = KeyboardButton('Купить')
 b_empty_cart = KeyboardButton('Очистить корзину')
 b_help = KeyboardButton('Назад')
 kb_order = ReplyKeyboardMarkup(resize_keyboard=True).add(b_buy).row(b_empty_cart, b_help)
+kb_order2 = ReplyKeyboardMarkup(resize_keyboard=True).add(b_empty_cart).add(b_help)
 
 
 async def items_ikb_clt():  # inline menu for client
@@ -117,8 +118,9 @@ async def items_ikb_clt():  # inline menu for client
 
 async def in_plus_menu(filt, data):  # buy
     kb_i_menu = InlineKeyboardMarkup(row_width=2)
+
     for i in data:
-        if i[2] == filt and i[3] == 'ЕСТЬ':
+        if str(i[2]) == str(filt) and i[3] == 'ЕСТЬ':
             kb_i_menu.insert(
                 InlineKeyboardButton(f'{i[0]} - {i[1]}р 🔼', callback_data=f'clt:plus:{i[2]}:{i[0]}:{i[1]}'))
     return kb_i_menu.add(InlineKeyboardButton('Уменьшить', callback_data=f'clt:buy:minus_menu:-:-')). \
@@ -242,5 +244,5 @@ async def total_price(id):
 
 async def round_int(val):
     if val % 10 != 0:
-        val = val * 1.2 - ((val * 1.2) % 10)
+        val = val * 1.2 + ((val * 1.2) % 10)
     return val

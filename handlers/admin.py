@@ -122,6 +122,7 @@ async def set_stop_list(call: types.CallbackQuery, state: FSMContext):
             data['stoplist'] = str(call.data)
         await call.message.edit_reply_markup()
         await bot.send_message(call.from_user.id, f'<b>Ваш выбор:</b> {call.data}', parse_mode='html')
+        print(data)
         await sql.add_menu(state)
         await bot.send_message(call.from_user.id, 'Данные загружены, ОК!', reply_markup=kb_admin.admin_case)
         await call.answer()
@@ -253,3 +254,8 @@ def register_handlers_admin(dp: Dispatcher):
     dp.register_callback_query_handler(del_call, cb.filter(type='del_food'))
     dp.register_message_handler(start_edit_item, Text('Добавить раздел'), state=None)
     dp.register_message_handler(set_name_item, state=FSMItem.name)
+
+# mas = []
+# data = {
+#     'name':
+# }

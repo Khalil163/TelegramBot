@@ -15,4 +15,4 @@ order.register_handlers_order(dp)
 other.register_handlers_other(dp)
 
 
-executor.start_polling(dp, skip_updates=True, on_startup=start_on)
+executor.start_polling(dp, skip_updates=False, on_startup=start_on)

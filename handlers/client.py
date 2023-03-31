@@ -1,12 +1,11 @@
 import random
 import string
-
 import pytz
 from aiogram import types, Dispatcher
 from aiogram.types import WebAppInfo
 import create__bot
 from create__bot import dp
-from data import sql
+from data import sql, menu
 from aiogram.dispatcher.filters import Text
 from aiogram.types import ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 from keyboards import client_kb
@@ -23,8 +22,8 @@ from yoomoney import Quickpay, Client
 
 
 tz_tlt = pytz.timezone('Europe/Samara')
-lim1 = time(0, 0)
-lim2 = time(21, 45)
+lim1 = time(9, 30)
+lim2 = time(22, 0)
 
 
 async def work_time():
@@ -52,11 +51,29 @@ cb = client_kb.cb
 
 # @dp.message_handler(commands=['start', 'help'])
 async def hi_send(message: types.Message):
+    #await menu.write_menu()
     if await sql.is_moder(message.from_user.id) == 'admin':
         await message.answer(f"Привет, {message.from_user.first_name}! 👋", reply_markup=client_kb.kb_adm)
     else:
         await message.answer(f"Привет, {message.from_user.first_name}! 👋",
                              reply_markup=client_kb.kb_client)
+
+    await sql.empty_cart(message.from_user.id)
+    await sql.add_state(message.from_user.id, 0)
+    await sql.add_state_pay(message.from_user.id, 0)
+
+
+    try:
+        msg = (await sql.get_info(message.from_user.id))[7]
+        msg1 = str(msg).split('x')[0]
+        msg2 = str(msg).split('x')[1]
+        await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
+        await bot.delete_message(chat_id=message.from_user.id, message_id=msg2)
+    except Exception as e:
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=msg)
+        except Exception as e:
+            pass
 
 
 async def ask_buy(message: types.Message):
@@ -203,7 +220,7 @@ async def show_menu(call: types.CallbackQuery, callback_data: dict):
         category = callback_data.get('category')
         await sql.add_cat(call.from_user.id, category)
         await call.message.edit_reply_markup(
-            reply_markup=await client_kb.in_plus_menu(callback_data.get('category'), wait))
+            reply_markup=await client_kb.in_plus_menu(category, wait))
     else:
         await call.message.answer(
             '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
@@ -271,13 +288,23 @@ async def minus_cart(call: types.CallbackQuery, callback_data: dict):
 
 
 async def empty_cart(message: types.Message):
-    msg_cart = await sql.get_info(message.from_user.id)
-    msg_cart = msg_cart[7]
-    await sql.empty_cart(message.from_user.id)
-    await bot.delete_message(chat_id=message.from_user.id, message_id=msg_cart)
-    await message.answer('Корзина очищена')
+    msg = (await sql.get_info(message.from_user.id))[7]
+    try:
+        msg1 = str(msg).split('x')[0]
+        msg2 = str(msg).split('x')[1]
+        await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
+        await bot.delete_message(chat_id=message.from_user.id, message_id=msg2)
+    except Exception as e:
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=msg)
+        except Exception as e:
+            pass
+
+    await message.answer('Корзина очищена', reply_markup=client_kb.kb_order)
     msg_cart = await message.answer('Меню', reply_markup=await client_kb.items_ikb_clt())
     await sql.add_msg(message.from_user.id, msg_cart.message_id)
+    await sql.add_state(message.from_user.id, 0)
+    await sql.add_state_pay(message.from_user.id, 0)
 
 
 async def deliv_self(call: types.CallbackQuery):
@@ -291,30 +318,31 @@ async def deliv_self(call: types.CallbackQuery):
 async def draft_buy(message: types.Message):
     if await work_time():
 
+        data = await sql.get_info(message.from_user.id)
+        msg = data[7]
         if await sql.get_cart(message.from_user.id) == []:
-            msg = (await sql.get_info(message.from_user.id))[7]
+
             await bot.delete_message(chat_id=message.chat.id, message_id=msg)
             await message.answer('Вы ничего не выбрали')
             msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
             return await sql.add_msg(message.from_user.id, msg_cart.message_id)
 
-        msg = (await sql.get_info(message.from_user.id))[7]
         await bot.delete_message(chat_id=message.chat.id, message_id=msg)
-        delivery = (await sql.get_info(message.from_user.id))[6]
+        delivery = data[6]
         old = await client_kb.check(delivery, message.from_user.id)
-        address = await sql.get_address(message.from_user.id)
+        address = data[11]
         address = str(address).split(',')
         geo = address[0] + ' ' + address[1]
-
+        msg1 = 0
         if delivery > 0:
-            msg = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}<b>Адрес:</b> {geo}', parse_mode='html', reply_markup=ReplyKeyboardRemove())
-            await sql.add_msg(message.from_user.id,msg.message_id)
+            msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}<b>Адрес:</b> {geo}', parse_mode='html', reply_markup=client_kb.kb_order2)
         else:
+            msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html', reply_markup=client_kb.kb_order2)
 
-            msg = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html', reply_markup=ReplyKeyboardRemove())
-            await sql.add_msg(message.from_user.id, msg.message_id)
+        msg = await bot.send_message(message.from_user.id, 'Оформляем заказ?', reply_markup=client_kb.draft_kb)
+        total = f'{msg.message_id}x{msg1.message_id}'
+        await sql.add_msg(message.from_user.id, total)
 
-        await bot.send_message(message.from_user.id, 'Оформляем заказ?', reply_markup=client_kb.draft_kb)
     else:
         await message.answer(
             '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
@@ -349,12 +377,12 @@ async def ask_pay(call: types.CallbackQuery):
             claim_keyboard.add(InlineKeyboardButton(text='Проверить оплату',
                                                     callback_data='clt:claim:-:-:-'))
 
-
-
             await call.message.delete()
-            await bot.send_message(call.from_user.id,
+            msg = await bot.send_message(call.from_user.id,
                                     MESSAGES['buy'],
                                    reply_markup=claim_keyboard)
+            await sql.add_msg(call.from_user.id, msg.message_id)
+
             await call.answer()
         else:
             await call.message.delete()
@@ -389,6 +417,7 @@ async def answer_q3(call: types.CallbackQuery):
 
     client = Client(create__bot.pay_token)
     history = client.operation_history(label=label)
+    await call.answer('Проверяем...')
     try:
         operation = history.operations[-1]
         if operation.status == 'success':
@@ -403,6 +432,7 @@ async def answer_q3(call: types.CallbackQuery):
     except Exception as e:
         await bot.send_message(call.message.chat.id,
                                MESSAGES['wait_message'])
+
 
 
 
@@ -448,7 +478,7 @@ async def info_lazzat(message: types.Message):
         '<b>Кафе Лаззат:</b>\n\n<b>Адрес:</b> ул. Жигулевская 11 г. Тольятти\n<b>Режим работы:</b> 09:30 - '
         '22:00\n<b>Тел:</b> +79649687004 '
         '\n\nЭтот бот создан для заказа еды, если есть сомнения позвоните по официальному номеру на сайте и уточните '
-        'id бота.\n\nМеню с опсианием и картинками ниже по ссылке\n\n<b>Создатель бота:</b> @ZeRo_163',
+        'id бота.\n\n<b>Создатель бота:</b> @ZeRo_163',
         reply_markup=client_kb.kb_info, parse_mode='html')
 
 

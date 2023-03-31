@@ -3,6 +3,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.callback_data import CallbackData
 
 from data import sql
+from aiogram.types import WebAppInfo
 
 
 cb = CallbackData('adm', 'type', 'category', 'product', 'state')
@@ -11,6 +12,7 @@ b_edit_menu = KeyboardButton('Добавить блюдо')
 b_edit_item = KeyboardButton('Добавить раздел')
 b_del = KeyboardButton('Удалить')
 b_stop = KeyboardButton('Стоп лист')
+#status_order = KeyboardButton('Delivery', web_app=WebAppInfo(url='https://dostavka.yandex.ru/account2/cargo'))
 admin_case = ReplyKeyboardMarkup(resize_keyboard=True).add(b_edit_menu, b_edit_item).add(b_del, b_stop).add(KeyboardButton('Режим клиента'))
 
 b_canc = KeyboardButton('Отмена')
