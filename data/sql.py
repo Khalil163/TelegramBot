@@ -1,7 +1,5 @@
 import sqlite3 as sq
-from create__bot import bot
-from aiogram.types import Message
-from handlers import client
+
 
 
 def start_basa():
@@ -24,7 +22,7 @@ def start_basa():
     base.execute('CREATE TABLE IF NOT EXISTS menu(name TEXT PRIMARY KEY, price INT, item TEXT, stoplist TEXT)')
     base.commit()
     mod.execute('CREATE TABLE IF NOT EXISTS users(name TEXT, id TEXT PRIMARY KEY, access TEXT, number TEXT, long INT, '
-                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT, state_pay INT)')
+                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT, state_pay TEXT, score INT)')
     mod.commit()
 
     cart.execute('CREATE TABLE IF NOT EXISTS cart(user_id TEXT, name TEXT, count INT, price INT)')
@@ -87,7 +85,7 @@ async def del_item(data):
 
 
 async def add_user(name, id, access):  # Moders
-    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     mod.commit()
 
 
@@ -119,6 +117,11 @@ async def add_num(id, num):
     mod.commit()
 
 
+async def add_score(id, num):
+    m_cur.execute('UPDATE users SET score = ? WHERE id == ?', [num,  id])
+    mod.commit()
+
+
 async def get_num(id):
     info = m_cur.execute('SELECT * FROM users WHERE id == ?', [id, ]).fetchone()
     return info[3]
@@ -130,8 +133,10 @@ async def add_state(id, state):
 
 
 async def get_state(id):
-    info = m_cur.execute('SELECT * FROM users WHERE id == ?', [id, ]).fetchone()
-    return info[10]
+    try:
+        return (m_cur.execute('SELECT status FROM users WHERE id == ?', [id, ]).fetchone())[0][0]
+    except TypeError:
+        return 0
 
 
 async def upp_level(id, access):
@@ -146,6 +151,13 @@ async def add_cart(user_id, name, price):  # Cart
 
 async def get_cart(user_id):
     return cart_cur.execute('SELECT * FROM cart WHERE user_id == ?', [user_id]).fetchall()
+
+
+async def get_score(user_id):
+    return (m_cur.execute('SELECT score FROM users WHERE id == ?', [user_id]).fetchone())[0]
+
+async def get_delivery(user_id):
+    return (m_cur.execute('SELECT delivery FROM users WHERE id == ?', [user_id]).fetchone())[0]
 
 
 async def get_count_cart(user_id, name):

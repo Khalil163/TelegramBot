@@ -17,10 +17,10 @@
 #     for i in range(len(names)):
 #         a = {'name': names[i], 'price': prices[i], 'item': items[i], 'stoplist': 'ЕСТЬ'}
 #         await sql.add_menu(a)
-
-
-
-
+#
+#
+#
+#
 # names_file.close()
 # prices_file.close()
 # items_file.close()

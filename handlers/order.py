@@ -10,7 +10,7 @@ cb = client_kb.cb
 async def access(call: types.CallbackQuery, callback_data: dict):
     id = int(callback_data.get('product'))
     delivery = await sql.get_info(id)
-    msg = int(delivery[7])
+    msg = delivery[7]
     old = await client_kb.check(int(delivery[6]), id)
     num = str(delivery[3])
     state = 'Заказ готовится'
@@ -23,7 +23,7 @@ async def access(call: types.CallbackQuery, callback_data: dict):
         if float(callback_data.get('price')) > 0:
             locate = await sql.get_address(id)
             text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ готовится'
-            await bot.send_message(id, '<b>Мы стараемся, чтобы ваш заказ был приготовлен как можно быстрее!</b>\nДоставка заказа займет от 15 мин', reply_markup= client_kb.kb_state, parse_mode='html')
+            await bot.send_message(id, '<b>Мы стараемся, чтобы ваш заказ был приготовлен как можно быстрее!</b>\n\nДоставка заказа займет от 15 мин', reply_markup= client_kb.kb_state, parse_mode='html')
             await bot.edit_message_text(text, call.from_user.id, message_id=msg, reply_markup=await client_kb.express(id), parse_mode='html')
 
         else:
@@ -55,7 +55,6 @@ async def order_taxi(call: types.CallbackQuery, callback_data: dict):
 
     await sql.add_state(id, state)
 
-    await sql.add_state(id, state)
 
     await call.answer('Вы заказали такси')
     locate = await sql.get_address(id)

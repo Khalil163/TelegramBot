@@ -1,11 +1,12 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+import create__bot
 from data import sql
 from aiogram.utils.callback_data import CallbackData
 import requests
 from create__bot import API_TAXI
 import json
-from geopy.distance import geodesic as GD
 from aiogram.types.web_app_info import WebAppInfo
 
 cb = CallbackData('clt', 'type', 'category', 'product', 'price')
@@ -105,7 +106,11 @@ b_buy = KeyboardButton('Купить')
 b_empty_cart = KeyboardButton('Очистить корзину')
 b_help = KeyboardButton('Назад')
 kb_order = ReplyKeyboardMarkup(resize_keyboard=True).add(b_buy).row(b_empty_cart, b_help)
-kb_order2 = ReplyKeyboardMarkup(resize_keyboard=True).add(b_empty_cart).add(b_help)
+
+score = InlineKeyboardButton('Потратить баллы', callback_data='order_score_minus')
+
+kb_order2 = InlineKeyboardMarkup().add(score)
+kb_order3 = ReplyKeyboardMarkup(resize_keyboard=True).add(b_empty_cart)
 
 
 async def items_ikb_clt():  # inline menu for client
@@ -122,7 +127,7 @@ async def in_plus_menu(filt, data):  # buy
     for i in data:
         if str(i[2]) == str(filt) and i[3] == 'ЕСТЬ':
             kb_i_menu.insert(
-                InlineKeyboardButton(f'{i[0]} - {i[1]}р 🔼', callback_data=f'clt:plus:{i[2]}:{i[0]}:{i[1]}'))
+                InlineKeyboardButton(f'{i[0]} 🔼', callback_data=f'clt:plus:{i[2]}:{i[0]}:{i[1]}'))
     return kb_i_menu.add(InlineKeyboardButton('Уменьшить', callback_data=f'clt:buy:minus_menu:-:-')). \
         insert(InlineKeyboardButton('Назад', callback_data='clt:buy:Назад:-:-'))
 
@@ -132,7 +137,7 @@ async def in_minus_menu(filt, data):  # buy
     for i in data:
         if i[2] == filt and i[3] == 'ЕСТЬ':
             kb_i_menu.insert(
-                InlineKeyboardButton(f'{i[0]} - {i[1]}р 🔽', callback_data=f'clt:minus:{i[2]}:{i[0]}:{i[1]}'))
+                InlineKeyboardButton(f'{i[0]} 🔽', callback_data=f'clt:minus:{i[2]}:{i[0]}:{i[1]}'))
     return kb_i_menu.add(InlineKeyboardButton('Увеличить', callback_data='clt:buy:plus_menu:-:-')). \
         insert(InlineKeyboardButton('Назад', callback_data='clt:buy:Назад:-:-'))
 
@@ -217,17 +222,25 @@ async def get_price(user_id):
 
 async def check(delivery, id):
     load = await sql.get_cart(id)
+    score = await sql.get_score(id)
+
     old = ''
     sum = 0
 
+
+
     for i in load:
-        old += '<u>{0:<1}</u>  {1:^1} * {2:^1} {3:^1} {4:>1}\n'.format(i[1], i[2], i[3], '=', i[2] * i[3])
+        old += '<u>{0:<1}</u>  {1:^1} * {2:^1}р {3:^1} {4:>1}р\n'.format(i[1], i[2], i[3], '=', i[2] * i[3])
         sum += int(i[2]) * int(i[3])
     if int(delivery) == 0:
-        old += '\n<b>Итого:</b>{:5}\n'.format(sum)
+        old += '\n<b>Ваши баллы:</b>{:5}\n<b>Итого:</b>{:5}р\n'.format(score, sum)
     else:
+        data = await sql.get_info(id)
+        address = data[11]
+        address = str(address).split(',')
+        geo = address[0] + ' ' + address[1]
         sum += int(delivery)
-        old += '\n<b>Доставка:</b>{:5}\n<b>Итого:</b>{:5}\n'.format(int(delivery), sum)
+        old += '\n<b>Ваши баллы:</b>{:5}\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{:5}р\n\n<b>Адрес:</b> {:5}\n'.format(score,delivery, sum, geo)
     return old
 
 async def total_price(id):
@@ -244,5 +257,39 @@ async def total_price(id):
 
 async def round_int(val):
     if val % 10 != 0:
-        val = val * 1.2 + ((val * 1.2) % 10)
+        val = val * 1.2 - ((val * 1.2) % 10) + 10
     return val
+
+
+async def score_check(id, score):
+    load = await sql.get_cart(id)
+    old = ''
+    delivery = await sql.get_delivery(id)
+    sum = 0
+
+    for i in load:
+        old += '<u>{0:<1}</u>  {1:^1} * {2:^1}р {3:^1} {4:>1}р\n'.format(i[1], i[2], i[3], '=', i[2] * i[3])
+        sum += int(i[2]) * int(i[3])
+    if int(delivery) == 0:
+        if score > sum:
+            score2 = score
+            score = sum//2
+            old += '\n<b>Итого:</b>{:5}р - {:5}(баллы) = {:5}\n'.format(sum, score,sum-score)
+            await sql.add_score(id, score2 - score)
+        else:
+            old += '\n<b>Итого:</b>{:5}р - {:5}(баллы) = {:5}\n'.format(sum, score,sum-score)
+            await sql.add_score(id, 0)
+    else:
+        sum += int(delivery)
+        if score > sum:
+            score2 = score
+            score = sum//2
+            old += '\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{}р - {}(баллы) = {}р\n'.format(int(delivery), sum, score,sum-score)
+            await sql.add_score(id, score2 - score)
+        else:
+            old += '\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{:5}р - {:5}(баллы) = {:5}р\n'.format(int(delivery), sum, score,sum-score)
+            await sql.add_score(id, 0)
+
+
+
+    return old

@@ -1,5 +1,7 @@
 import requests
 import json
+
+import create__bot
 from data import sql
 from create__bot import API_TAXI, client_id, bot
 import uuid
@@ -77,9 +79,9 @@ async def draft_order(id):
                 },
 
                 "contact": {
-                    "email": "alimzhanov.2005@list.ru",
+                    "email": "example@gmail.com",
                     "name": "Неизвестно",
-                    "phone": '+79025187640',
+                    "phone": str(info[3]),
                 },
 
                 "external_order_cost": {
@@ -102,13 +104,14 @@ async def draft_order(id):
     par = uuid.uuid4()
     req = requests.post(f'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/create?request_id={par}',
                         headers={"Authorization": f'Bearer {API_TAXI}', 'Accept-Language': 'ru'}, json=res)
-    print('order: ', req.text)
-    if str(req) == '<Response [200]>':
-        obj = json.loads(req.text)
-        a = str(obj['id'])
-        await sql.add_offer(id, a)
-    else:
-        await bot.send_message(1176527696,
+    #print('order: ', req.text)
+    try:
+        if str(req) == '<Response [200]>':
+            obj = json.loads(req.text)
+            a = str(obj['id'])
+            await sql.add_offer(id, a)
+    except Exception:
+        await bot.send_message(create__bot.admin_id,
                                f'Сбой вызова такси:\nВам придется заказать такси самому: \nТел: {await sql.get_num(id)}')
 
 
@@ -121,14 +124,15 @@ async def proc_order(id):
 
     rq = requests.post(f'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/accept?claim_id={offer}',
                        headers={"Authorization": f'Bearer {API_TAXI}', 'Accept-Language': 'ru'}, json=req)
-    print("proc: ", rq, rq.text)
-    obj = json.loads(rq.text)
-    if str(rq) == '<Response [409]>':
-        await proc_order(id)
-    elif str(rq) == '<Response [200]>':
-        pass
-    else:
-        await bot.send_message(1176527696,
+    #print("proc: ", rq, rq.text)
+    try:
+        obj = json.loads(rq.text)
+        if str(rq) == '<Response [409]>':
+            await proc_order(id)
+        elif str(rq) == '<Response [200]>':
+            pass
+    except Exception as e:
+        await bot.send_message(create__bot.admin_id,
                                f'Сбой вызова такси:\nВам придется заказать такси самому: \nТел: {await sql.get_num(id)}')
 
 #
@@ -139,7 +143,7 @@ async def cancel_order(id):
                        headers={"Authorization": f'Bearer {API_TAXI}', 'Accept-Language': 'ru'})
     obj = json.loads(rq.text)
     a = str(obj['cancel_state'])
-    print(a)
+    #print(a)
 
     res = {
             "cancel_state": a,
@@ -150,7 +154,8 @@ async def cancel_order(id):
                        headers={"Authorization": f'Bearer {API_TAXI}', 'Accept-Language': 'ru'}, json=res)
 
     if str(rq) == '<Response [200]>':
-        print(rq, rq.text)
+        #print(rq, rq.text)
+        pass
     else:
         return await bot.send_message(id, 'Не удалось отменить заказ\nОтмените  сами!!!')
 
@@ -160,19 +165,22 @@ async def state_order(id):
 
     rq = requests.post(f'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/info?claim_id={offer}',
                        headers={"Authorization": f'Bearer {API_TAXI}', 'Accept-Language': 'ru'})
-    print('status: ',rq, rq.text)
-    obj = json.loads(rq.text)
-    a = str(obj['route_points'][0]['visit_status'])
+    #print('status: ',rq, rq.text)
+    try:
+        obj = json.loads(rq.text)
+        a = str(obj['route_points'][0]['visit_status'])
 
-    if a == 'skipped':
-        a = 'Заказ <b>отменен</b>'
-    elif a == 'pending':
-        a = '<b>Ищем курьера</b>'
-    elif a == 'arrived':
-        a = 'Курьер <b>ожидает</b>'
-    elif a == 'visited':
-        a = 'Курьер уже <b>в пути</b>'
-    return a
+        if a == 'skipped':
+            a = 'Заказ <b>отменен</b>'
+        elif a == 'pending':
+            a = '<b>Ищем курьера</b>'
+        elif a == 'arrived':
+            a = 'Курьер <b>ожидает</b>'
+        elif a == 'visited':
+            a = 'Курьер уже <b>в пути</b>'
+        return a
+    except Exception:
+        pass
 
 
 # async def sharing_link(id):

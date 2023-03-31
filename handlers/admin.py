@@ -240,7 +240,6 @@ def register_handlers_admin(dp: Dispatcher):
     dp.register_message_handler(cancel_hand, state="*", commands='Отмена')
     dp.register_message_handler(cancel_hand, Text(equals='отмена', ignore_case=True), state="*")
     dp.register_message_handler(set_name, state=FSMAdmin.name)
-    # dp.register_message_handler(set_description, state=FSMAdmin.description)
     dp.register_message_handler(set_price_invalid, lambda message: not message.text.isdigit(), state=FSMAdmin.price)
     dp.register_message_handler(set_price, lambda message: message.text.isdigit(), state=FSMAdmin.price)
     dp.register_callback_query_handler(set_item, cb.filter(type='set_item'), state=FSMAdmin.item)
@@ -255,7 +254,3 @@ def register_handlers_admin(dp: Dispatcher):
     dp.register_message_handler(start_edit_item, Text('Добавить раздел'), state=None)
     dp.register_message_handler(set_name_item, state=FSMItem.name)
 
-# mas = []
-# data = {
-#     'name':
-# }
