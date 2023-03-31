@@ -425,7 +425,7 @@ async def answer_q3(call: types.CallbackQuery):
             await sql.add_state_pay(call.message.chat.id, 1)
             await bot.send_message(call.message.chat.id,
                                    MESSAGES['successful_payment'])
-            msg = await bot.send_message(chat_id=1176527696, text=text, reply_markup=await client_kb.acs_butt(call.from_user.id), parse_mode='html')
+            msg = await bot.send_message(chat_id=create__bot.admin_id, text=text, reply_markup=await client_kb.acs_butt(call.from_user.id), parse_mode='html')
             await sql.add_msg(call.from_user.id, msg.message_id)
             await sql.add_state_pay(call.from_user.id, 0)
             await sql.add_state(call.from_user.id, 0)
