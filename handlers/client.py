@@ -22,7 +22,7 @@ from yoomoney import Quickpay, Client
 
 
 tz_tlt = pytz.timezone('Europe/Samara')
-lim1 = time(9, 30)
+lim1 = time(0, 0)
 lim2 = time(23, 30)
 
 
@@ -312,6 +312,7 @@ async def empty_cart(message: types.Message):
     await sql.add_msg(message.from_user.id, msg_cart.message_id)
     await sql.add_state(message.from_user.id, 0)
     await sql.add_state_pay(message.from_user.id, 0)
+    await sql.empty_cart(message.from_user.id)
 
 
 async def deliv_self(call: types.CallbackQuery):
@@ -377,10 +378,9 @@ async def draft_buy(message: types.Message):
 # @dp.callback_query_handler(Text(startswith='order'), state=None)
 async def ask_pay(call: types.CallbackQuery):
     if await work_time():
-        sum = await client_kb.total_price(call.from_user.id)
-        score = await sql.get_score(call.from_user.id)
-
         if call.data == 'order_score_minus':
+            sum = await client_kb.total_price(call.from_user.id)
+            score = await sql.get_score(call.from_user.id)
             old = await client_kb.score_check(call.from_user.id, score)
             if score > sum:
                 sum -= sum//2
@@ -388,7 +388,7 @@ async def ask_pay(call: types.CallbackQuery):
 
         elif call.data == 'order_right':
             letters_and_digits = string.ascii_lowercase + string.digits
-            rand_string = str(uuid.uuid4())
+            rand_string = ''.join(random.sample(letters_and_digits, 10))
 
             quickpay = Quickpay(
                 receiver='4100112327803607',
@@ -399,9 +399,6 @@ async def ask_pay(call: types.CallbackQuery):
                 label=rand_string,
                 successURL='https://t.me/lazzat_163_Bot'
             )
-
-            await sql.add_state(call.from_user.id, rand_string)
-
             claim_keyboard = InlineKeyboardMarkup(inline_keyboard=[[]])
             claim_keyboard.add(InlineKeyboardButton(text='Оплатить',
                                                     url=quickpay.redirected_url))
@@ -412,9 +409,9 @@ async def ask_pay(call: types.CallbackQuery):
             msg = await bot.send_message(call.from_user.id,
                                     MESSAGES['buy'],
                                    reply_markup=claim_keyboard)
-            await sql.add_msg(call.from_user.id, msg.message_id)
-
             await call.answer()
+            await sql.add_msg(call.from_user.id, msg.message_id)
+            await sql.add_state(call.from_user.id, rand_string)
 
         elif call.data == 'order_err':
             await call.message.delete()
@@ -457,18 +454,18 @@ async def answer_q3(call: types.CallbackQuery):
             await bot.delete_message(chat_id=call.from_user.id, message_id=call.message.message_id)
             await sql.add_state_pay(call.message.chat.id, 1)
             await bot.send_message(call.message.chat.id,
-                                   MESSAGES['successful_payment'], reply_markup=client_kb.b_state)
+                                   MESSAGES['successful_payment'], reply_markup=client_kb.kb_state)
             msg = await bot.send_message(chat_id=create__bot.admin_id, text=text, reply_markup=await client_kb.acs_butt(call.from_user.id), parse_mode='html')
             await sql.add_msg(call.from_user.id, msg.message_id)
             await sql.add_state_pay(call.from_user.id, 0)
-            await sql.add_state(call.from_user.id, 0)
+            await sql.add_state(call.from_user.id, 'Заказ принят')
             score = await sql.get_score(call.from_user.id)
             sum = await client_kb.total_price(call.from_user.id)
             ball = int(sum) * 0.01
             await sql.add_score(call.from_user.id, int(score+ball))
     except Exception as e:
         await bot.send_message(call.message.chat.id,
-                              MESSAGES['wait_message'], reply_markup=client_kb.b_state)
+                              MESSAGES['wait_message'], reply_markup=client_kb.kb_state)
 
 
 

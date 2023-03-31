@@ -274,10 +274,10 @@ async def score_check(id, score):
         if score > sum:
             score2 = score
             score = sum//2
-            old += '\n<b>Итого:</b>{:5}р - {:5}(баллы) = {:5}\n'.format(sum, score,sum-score)
+            old += '\n<b>Итого:</b>{:5}р - {}(баллы) = {}\n'.format(sum, score,sum-score)
             await sql.add_score(id, score2 - score)
         else:
-            old += '\n<b>Итого:</b>{:5}р - {:5}(баллы) = {:5}\n'.format(sum, score,sum-score)
+            old += '\n<b>Итого:</b>{:5}р - {}(баллы) = {}\n'.format(sum, score,sum-score)
             await sql.add_score(id, 0)
     else:
         sum += int(delivery)
@@ -287,7 +287,7 @@ async def score_check(id, score):
             old += '\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{}р - {}(баллы) = {}р\n'.format(int(delivery), sum, score,sum-score)
             await sql.add_score(id, score2 - score)
         else:
-            old += '\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{:5}р - {:5}(баллы) = {:5}р\n'.format(int(delivery), sum, score,sum-score)
+            old += '\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{}р - {}(баллы) = {}р\n'.format(int(delivery), sum, score,sum-score)
             await sql.add_score(id, 0)
 
 

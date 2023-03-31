@@ -134,7 +134,8 @@ async def add_state(id, state):
 
 async def get_state(id):
     try:
-        return (m_cur.execute('SELECT status FROM users WHERE id == ?', [id, ]).fetchone())[0][0]
+        info = (m_cur.execute('SELECT status FROM users WHERE id == ?', [id, ]).fetchone())[0]
+        return info
     except TypeError:
         return 0
 
