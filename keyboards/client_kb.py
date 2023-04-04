@@ -104,7 +104,7 @@ draft_kb = InlineKeyboardMarkup(row_width=1).row(ib_y, ib_n)
 
 b_buy = KeyboardButton('Купить')
 b_empty_cart = KeyboardButton('Очистить корзину')
-b_help = KeyboardButton('Назад')
+b_help = KeyboardButton('Отмена')
 kb_order = ReplyKeyboardMarkup(resize_keyboard=True).add(b_buy).row(b_empty_cart, b_help)
 
 score = InlineKeyboardButton('Потратить баллы', callback_data='order_score_minus')

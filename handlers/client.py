@@ -22,8 +22,8 @@ from yoomoney import Quickpay, Client
 
 
 tz_tlt = pytz.timezone('Europe/Samara')
-lim1 = time(0, 0)
-lim2 = time(23, 30)
+lim1 = time(9, 30)
+lim2 = time(22, 30)
 
 
 async def work_time():
@@ -75,7 +75,7 @@ async def hi_send(message: types.Message):
         msg1 = str(msg).split('x')[0]
         msg2 = str(msg).split('x')[1]
         await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
-        await bot.delete_message(chat_id=message.from_user.id, message_id=msg2)
+        await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
     except Exception as e:
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=msg)
@@ -156,7 +156,20 @@ async def set_loc(message: types.Message, state: FSMContext):
 async def cancel_hand(message: types.Message, state: FSMContext):
     to_state = await state.get_state()
     if to_state is None:
-        return
+        msg = (await sql.get_info(message.from_user.id))[7]
+        try:
+            msg1 = str(msg).split('x')[0]
+            msg2 = str(msg).split('x')[1]
+            await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
+            await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
+        except Exception as e:
+            try:
+                await bot.delete_message(chat_id=message.chat.id, message_id=msg)
+            except Exception as e:
+                pass
+        await sql.add_state(message.from_user.id, 0)
+        await sql.empty_cart(message.from_user.id)
+        return await message.answer('Хорошо. Будем ждать вашего заказа!', reply_markup=client_kb.kb_client)
     if await sql.is_moder(message.from_user.id) == 'admin':
         await message.answer('ОК', reply_markup=client_kb.kb_adm)
     else:
@@ -300,7 +313,7 @@ async def empty_cart(message: types.Message):
         msg1 = str(msg).split('x')[0]
         msg2 = str(msg).split('x')[1]
         await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
-        await bot.delete_message(chat_id=message.from_user.id, message_id=msg2)
+        await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
     except Exception as e:
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=msg)
@@ -339,7 +352,7 @@ async def draft_buy(message: types.Message):
             msg1 = str(msg).split('x')[0]
             msg2 = str(msg).split('x')[1]
             await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
-            await bot.delete_message(chat_id=message.from_user.id, message_id=msg2)
+            await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
         except Exception as e:
             try:
                 await bot.delete_message(chat_id=message.chat.id, message_id=msg)
@@ -378,13 +391,16 @@ async def draft_buy(message: types.Message):
 # @dp.callback_query_handler(Text(startswith='order'), state=None)
 async def ask_pay(call: types.CallbackQuery):
     if await work_time():
+        sum = await client_kb.total_price(call.from_user.id)
+        delivery = await sql.get_delivery(call.from_user.id)
+        sms = await client_kb.check(delivery, call.from_user.id)
+
         if call.data == 'order_score_minus':
-            sum = await client_kb.total_price(call.from_user.id)
             score = await sql.get_score(call.from_user.id)
             old = await client_kb.score_check(call.from_user.id, score)
             if score > sum:
                 sum -= sum//2
-            await bot.edit_message_text(f'<b>Ваш заказ:</b>\n\n{old}', call.message.chat.id, call.message.message_id, parse_mode='html')
+                await bot.edit_message_text(f'<b>Ваш заказ:</b>\n\n{old}', call.message.chat.id, call.message.message_id, parse_mode='html')
 
         elif call.data == 'order_right':
             letters_and_digits = string.ascii_lowercase + string.digits
@@ -395,7 +411,7 @@ async def ask_pay(call: types.CallbackQuery):
                 quickpay_form='shop',
                 targets='Lazzat',
                 paymentType='SB',
-                sum=2,
+                sum=sum,
                 label=rand_string,
                 successURL='https://t.me/lazzat_163_Bot'
             )
@@ -404,11 +420,14 @@ async def ask_pay(call: types.CallbackQuery):
                                                     url=quickpay.redirected_url))
             claim_keyboard.add(InlineKeyboardButton(text='Проверить оплату',
                                                     callback_data='clt:claim:-:-:-'))
+            claim_keyboard.add(InlineKeyboardButton(text='Отменить оплату', callback_data='cancel_pay'))
 
             await call.message.delete()
+            msg1 = await sql.get_msg(call.from_user.id)
             msg = await bot.send_message(call.from_user.id,
                                     MESSAGES['buy'],
                                    reply_markup=claim_keyboard)
+
             await call.answer()
             await sql.add_msg(call.from_user.id, msg.message_id)
             await sql.add_state(call.from_user.id, rand_string)
@@ -423,6 +442,25 @@ async def ask_pay(call: types.CallbackQuery):
         await call.message.answer(
             '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
             parse_mode='html')
+
+
+@dp.callback_query_handler(text='cancel_pay')
+async def cancel_pay(call : types.CallbackQuery):
+    msg = await sql.get_msg(call.from_user.id)
+    try:
+        msg1 = str(msg).split('x')[0]
+        msg2 = str(msg).split('x')[1]
+        await bot.delete_message(chat_id=call.message.chat.id, message_id=msg1)
+        await bot.delete_message(chat_id=call.message.chat.id, message_id=msg2)
+    except Exception as e:
+        try:
+            await bot.delete_message(chat_id=call.message.chat.id, message_id=msg)
+        except Exception as e:
+            pass
+    await call.message.answer('Хорошо. Будем ждать вашего заказа', reply_markup=client_kb.kb_client)
+    await sql.add_state(call.from_user.id, 0)
+    await sql.empty_cart(call.from_user.id)
+
 
 
 # @dp.message_handler(state=FSMPickup.bill)

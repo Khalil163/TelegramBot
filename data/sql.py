@@ -160,6 +160,8 @@ async def get_score(user_id):
 async def get_delivery(user_id):
     return (m_cur.execute('SELECT delivery FROM users WHERE id == ?', [user_id]).fetchone())[0]
 
+async def get_msg(user_id):
+    return (m_cur.execute('SELECT msg FROM users WHERE id == ?', [user_id]).fetchone())[0]
 
 async def get_count_cart(user_id, name):
     count_food = cart.execute('SELECT count FROM cart WHERE user_id == ? AND name == ?', [user_id, name]).fetchall()
