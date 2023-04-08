@@ -1,7 +1,5 @@
 import random
 import string
-import uuid
-
 import pytz
 from aiogram import types, Dispatcher
 import create__bot
@@ -16,14 +14,12 @@ from create__bot import api_geo, dp
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from geopy.distance import geodesic as GD
-
 from data.p2p_messages import MESSAGES
 from yoomoney import Quickpay, Client
 
-
 tz_tlt = pytz.timezone('Europe/Samara')
 lim1 = time(9, 30)
-lim2 = time(22, 30)
+lim2 = time(21, 10)
 
 
 async def work_time():
@@ -60,25 +56,26 @@ async def hi_send(message: types.Message):
                 await message.answer(f"Привет, {message.from_user.first_name}! 👋",
                                      reply_markup=client_kb.kb_client)
     except ValueError:
+        await sql.empty_cart(message.from_user.id)
+        await sql.add_state(message.from_user.id, 0)
+        await sql.add_state_pay(message.from_user.id, 0)
         return await message.answer('Извините, у вас уже есть открытый заказ.\nПо вопросам звонить: +79649687004')
 
+    await del_twice_message(message.from_user.id)
 
 
-
-    await sql.empty_cart(message.from_user.id)
-    await sql.add_state(message.from_user.id, 0)
-    await sql.add_state_pay(message.from_user.id, 0)
-
+async def del_twice_message(id):
 
     try:
-        msg = (await sql.get_info(message.from_user.id))[7]
+        msg = (await sql.get_info(id))[7]
         msg1 = str(msg).split('x')[0]
         msg2 = str(msg).split('x')[1]
-        await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
-        await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
+        await bot.delete_message(chat_id=id, message_id=msg1)
+        await bot.delete_message(chat_id=id, message_id=msg2)
     except Exception as e:
         try:
-            await bot.delete_message(chat_id=message.chat.id, message_id=msg)
+            msg = (await sql.get_info(id))[7]
+            await bot.delete_message(chat_id=id, message_id=msg)
         except Exception as e:
             pass
 
@@ -121,7 +118,8 @@ async def set_loc(message: types.Message, state: FSMContext):
             point2 = (message.location.latitude, message.location.longitude)
 
             if GD(point1, point2) <= 25:
-                locate = Yandex(api_key=api_geo).reverse("%s, %s" % (message.location.latitude, message.location.longitude))
+                locate = Yandex(api_key=api_geo).reverse(
+                    "%s, %s" % (message.location.latitude, message.location.longitude))
                 await message.answer(f'Это ваш адрес?\n{locate}', reply_markup=client_kb.kb_right)
 
                 await sql.add_loc(message.from_user.id, message.location.longitude, message.location.latitude)
@@ -156,17 +154,7 @@ async def set_loc(message: types.Message, state: FSMContext):
 async def cancel_hand(message: types.Message, state: FSMContext):
     to_state = await state.get_state()
     if to_state is None:
-        msg = (await sql.get_info(message.from_user.id))[7]
-        try:
-            msg1 = str(msg).split('x')[0]
-            msg2 = str(msg).split('x')[1]
-            await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
-            await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
-        except Exception as e:
-            try:
-                await bot.delete_message(chat_id=message.chat.id, message_id=msg)
-            except Exception as e:
-                pass
+        await del_twice_message(message.from_user.id)
         await sql.add_state(message.from_user.id, 0)
         await sql.empty_cart(message.from_user.id)
         return await message.answer('Хорошо. Будем ждать вашего заказа!', reply_markup=client_kb.kb_client)
@@ -207,7 +195,8 @@ async def set_num(message: types.Message, state: FSMContext):
                     await sql.add_num(message.from_user.id, f'{message.contact.phone_number}')
                 except AttributeError:
                     await sql.add_num(message.from_user.id, message.text)
-                await message.answer('Теперь выберите блюда \n(Для покупки нажмите "КУПИТЬ")', reply_markup=client_kb.kb_order)
+                await message.answer('Теперь выберите блюда \n(Для покупки нажмите "КУПИТЬ")',
+                                     reply_markup=client_kb.kb_order)
 
                 msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
                 await sql.add_msg(message.from_user.id, msg_cart.message_id)
@@ -219,13 +208,11 @@ async def set_num(message: types.Message, state: FSMContext):
 
         except AttributeError:
             await sql.add_num(message.from_user.id, message.contact.phone_number)
-            await message.answer('Теперь выберите блюда \n(Для покупки нажмите "КУПИТЬ")', reply_markup=client_kb.kb_order)
+            await message.answer('Теперь выберите блюда \n(Для покупки нажмите "КУПИТЬ")',
+                                 reply_markup=client_kb.kb_order)
 
             msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
             await sql.add_msg(message.from_user.id, msg_cart.message_id)
-            # delivery = await client_kb.get_price(message.from_user.id)
-            #
-            # await sql.add_deliv(message.from_user.id, delivery)
             await state.finish()
     else:
         await message.answer(
@@ -308,17 +295,7 @@ async def minus_cart(call: types.CallbackQuery, callback_data: dict):
 
 
 async def empty_cart(message: types.Message):
-    msg = (await sql.get_info(message.from_user.id))[7]
-    try:
-        msg1 = str(msg).split('x')[0]
-        msg2 = str(msg).split('x')[1]
-        await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
-        await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
-    except Exception as e:
-        try:
-            await bot.delete_message(chat_id=message.chat.id, message_id=msg)
-        except Exception as e:
-            pass
+    await del_twice_message(message.from_user.id)
 
     await message.answer('Корзина очищена', reply_markup=client_kb.kb_order)
     msg_cart = await message.answer('Меню', reply_markup=await client_kb.items_ikb_clt())
@@ -342,39 +319,22 @@ async def draft_buy(message: types.Message):
         data = await sql.get_info(message.from_user.id)
         msg = data[7]
         if await sql.get_cart(message.from_user.id) == []:
-
             await bot.delete_message(chat_id=message.chat.id, message_id=msg)
             await message.answer('Вы ничего не выбрали')
             msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
             return await sql.add_msg(message.from_user.id, msg_cart.message_id)
 
-        try:
-            msg1 = str(msg).split('x')[0]
-            msg2 = str(msg).split('x')[1]
-            await bot.delete_message(chat_id=message.chat.id, message_id=msg1)
-            await bot.delete_message(chat_id=message.chat.id, message_id=msg2)
-        except Exception as e:
-            try:
-                await bot.delete_message(chat_id=message.chat.id, message_id=msg)
-            except Exception as e:
-                pass
+        await del_twice_message(message.from_user.id)
 
         delivery = data[6]
         old = await client_kb.check(delivery, message.from_user.id)
-        msg1 = 0
 
         if delivery > 0:
-
-            if data[13] > 0:
-                msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html', reply_markup=client_kb.kb_order2)
-            else:
-                msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html')
+            msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html',
+                                              )
         else:
-            if data[13] > 0:
-                msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html', reply_markup=client_kb.kb_order2)
-            else:
-                msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html')
-
+            msg1 = await bot.send_message(message.from_user.id, f'<b>Ваш заказ:</b>\n\n{old}', parse_mode='html',
+                                          )
 
         msg = await bot.send_message(message.from_user.id, 'Оформляем заказ?', reply_markup=client_kb.draft_kb)
         total = f'{msg.message_id}x{msg1.message_id}'
@@ -382,27 +342,19 @@ async def draft_buy(message: types.Message):
 
     else:
         await message.answer(
-            '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
+            '<b>Режим работы:</b> 09:30 - 21:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
             parse_mode='html')
-
-
 
 
 # @dp.callback_query_handler(Text(startswith='order'), state=None)
 async def ask_pay(call: types.CallbackQuery):
     if await work_time():
+
         sum = await client_kb.total_price(call.from_user.id)
         delivery = await sql.get_delivery(call.from_user.id)
-        sms = await client_kb.check(delivery, call.from_user.id)
 
-        if call.data == 'order_score_minus':
-            score = await sql.get_score(call.from_user.id)
-            old = await client_kb.score_check(call.from_user.id, score)
-            if score > sum:
-                sum -= sum//2
-                await bot.edit_message_text(f'<b>Ваш заказ:</b>\n\n{old}', call.message.chat.id, call.message.message_id, parse_mode='html')
 
-        elif call.data == 'order_right':
+        if call.data == 'order_right':
             letters_and_digits = string.ascii_lowercase + string.digits
             rand_string = ''.join(random.sample(letters_and_digits, 10))
 
@@ -411,7 +363,7 @@ async def ask_pay(call: types.CallbackQuery):
                 quickpay_form='shop',
                 targets='Lazzat',
                 paymentType='SB',
-                sum=sum,
+                sum=2,
                 label=rand_string,
                 successURL='https://t.me/lazzat_163_Bot'
             )
@@ -423,49 +375,37 @@ async def ask_pay(call: types.CallbackQuery):
             claim_keyboard.add(InlineKeyboardButton(text='Отменить оплату', callback_data='cancel_pay'))
 
             await call.message.delete()
-            msg1 = await sql.get_msg(call.from_user.id)
-            msg = await bot.send_message(call.from_user.id,
-                                    MESSAGES['buy'],
-                                   reply_markup=claim_keyboard)
 
+            msg = await bot.send_message(call.from_user.id,
+                                         MESSAGES['buy'],
+                                         reply_markup=claim_keyboard)
             await call.answer()
             await sql.add_msg(call.from_user.id, msg.message_id)
             await sql.add_state(call.from_user.id, rand_string)
 
-        elif call.data == 'order_err':
+        else:
             await call.message.delete()
             await bot.send_message(call.from_user.id, 'Заказ отменен.\nБудем ждать вашего заказа!',
                                    reply_markup=client_kb.kb_client)
             await call.answer()
             await sql.empty_cart(call.from_user.id)
+            await del_twice_message(call.from_user.id)
     else:
         await call.message.answer(
             '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
             parse_mode='html')
 
 
-@dp.callback_query_handler(text='cancel_pay')
-async def cancel_pay(call : types.CallbackQuery):
-    msg = await sql.get_msg(call.from_user.id)
-    try:
-        msg1 = str(msg).split('x')[0]
-        msg2 = str(msg).split('x')[1]
-        await bot.delete_message(chat_id=call.message.chat.id, message_id=msg1)
-        await bot.delete_message(chat_id=call.message.chat.id, message_id=msg2)
-    except Exception as e:
-        try:
-            await bot.delete_message(chat_id=call.message.chat.id, message_id=msg)
-        except Exception as e:
-            pass
+# @dp.callback_query_handler(text='cancel_pay')
+async def cancel_pay(call: types.CallbackQuery):
+    await del_twice_message(call.from_user.id)
     await call.message.answer('Хорошо. Будем ждать вашего заказа', reply_markup=client_kb.kb_client)
     await sql.add_state(call.from_user.id, 0)
     await sql.empty_cart(call.from_user.id)
 
 
-
 # @dp.message_handler(state=FSMPickup.bill)
 async def answer_q3(call: types.CallbackQuery):
-
     data = await sql.get_info(call.message.chat.id)
     bought = data[12]
     label = data[10]
@@ -476,15 +416,15 @@ async def answer_q3(call: types.CallbackQuery):
         num = '+' + num
 
     if int(data[6]) > 0:
-        locate = await sql.get_address(call.from_user.id)
         text = f'Доставка:\n{old}<b>Тел:</b> {num}\n\n<b>Статус:</b> Оплачен!'
     else:
         text = f'Cамовывоз:\n{old}\nТел: {num}\n\nСтатус: Оплачен!'
 
-
     client = Client(create__bot.pay_token)
     history = client.operation_history(label=label)
+
     await call.answer('Проверяем...')
+
     try:
         operation = history.operations[-1]
 
@@ -493,23 +433,14 @@ async def answer_q3(call: types.CallbackQuery):
             await sql.add_state_pay(call.message.chat.id, 1)
             await bot.send_message(call.message.chat.id,
                                    MESSAGES['successful_payment'], reply_markup=client_kb.kb_state)
-            msg = await bot.send_message(chat_id=create__bot.admin_id, text=text, reply_markup=await client_kb.acs_butt(call.from_user.id), parse_mode='html')
+            msg = await bot.send_message(chat_id=create__bot.admin_id, text=text,
+                                         reply_markup=await client_kb.acs_butt(call.from_user.id), parse_mode='html')
             await sql.add_msg(call.from_user.id, msg.message_id)
-            await sql.add_state_pay(call.from_user.id, 0)
             await sql.add_state(call.from_user.id, 'Заказ принят')
-            score = await sql.get_score(call.from_user.id)
-            sum = await client_kb.total_price(call.from_user.id)
-            ball = int(sum) * 0.01
-            await sql.add_score(call.from_user.id, int(score+ball))
+
     except Exception as e:
         await bot.send_message(call.message.chat.id,
-                              MESSAGES['wait_message'], reply_markup=client_kb.kb_state)
-
-
-
-
-
-
+                               MESSAGES['wait_message'], reply_markup=client_kb.kb_state)
 
     # # if await work_time():
     #     delivery = (await sql.get_info(message.from_user.id))
@@ -574,4 +505,5 @@ def register_handlers_client(dp: Dispatcher):
     dp.register_message_handler(empty_cart, Text('Очистить корзину'))
     dp.register_message_handler(ask_buy, Text('Заказать'))
     dp.register_message_handler(draft_buy, Text('Купить'))
+    dp.register_callback_query_handler(cancel_pay, text='cancel_pay')
     dp.register_message_handler(info_lazzat, text='Информация')

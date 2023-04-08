@@ -222,26 +222,23 @@ async def get_price(user_id):
 
 async def check(delivery, id):
     load = await sql.get_cart(id)
-    score = await sql.get_score(id)
-
     old = ''
     sum = 0
 
-
-
     for i in load:
-        old += '<u>{0:<1}</u>  {1:^1} * {2:^1}р {3:^1} {4:>1}р\n'.format(i[1], i[2], i[3], '=', i[2] * i[3])
+        old += '<u>{0:<1}</u>  {1:^1} * {2:^1} {3:^1} {4:>1}\n'.format(i[1], i[2], i[3], '=', i[2] * i[3])
         sum += int(i[2]) * int(i[3])
     if int(delivery) == 0:
-        old += '\n<b>Ваши баллы:</b>{:5}\n<b>Итого:</b>{:5}р\n'.format(score, sum)
+        old += '\n<b>Итого:</b>{:5}\n'.format(sum)
     else:
         data = await sql.get_info(id)
         address = data[11]
         address = str(address).split(',')
         geo = address[0] + ' ' + address[1]
         sum += int(delivery)
-        old += '\n<b>Ваши баллы:</b>{:5}\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{:5}р\n\n<b>Адрес:</b> {:5}\n'.format(score,delivery, sum, geo)
+        old += '<b>\nДоставка:</b>{:5}р\n<b>Итого:</b>{:5}р\n\n<b>Адрес:</b> {:5}\n'.format(delivery, sum, geo)
     return old
+
 
 async def total_price(id):
     delivery = await sql.get_deliv(id)
@@ -257,39 +254,5 @@ async def total_price(id):
 
 async def round_int(val):
     if val % 10 != 0:
-        val = val * 1.2 - ((val * 1.2) % 10) + 10
+        val = val - (val % 10) + 15
     return val
-
-
-async def score_check(id, score):
-    load = await sql.get_cart(id)
-    old = ''
-    delivery = await sql.get_delivery(id)
-    sum = 0
-
-    for i in load:
-        old += '<u>{0:<1}</u>  {1:^1} * {2:^1}р {3:^1} {4:>1}р\n'.format(i[1], i[2], i[3], '=', i[2] * i[3])
-        sum += int(i[2]) * int(i[3])
-    if int(delivery) == 0:
-        if score > sum:
-            score2 = score
-            score = sum//2
-            old += '\n<b>Итого:</b>{:5}р - {}(баллы) = {}\n'.format(sum, score,sum-score)
-            await sql.add_score(id, score2 - score)
-        else:
-            old += '\n<b>Итого:</b>{:5}р - {}(баллы) = {}\n'.format(sum, score,sum-score)
-            await sql.add_score(id, 0)
-    else:
-        sum += int(delivery)
-        if score > sum:
-            score2 = score
-            score = sum//2
-            old += '\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{}р - {}(баллы) = {}р\n'.format(int(delivery), sum, score,sum-score)
-            await sql.add_score(id, score2 - score)
-        else:
-            old += '\n<b>Доставка:</b>{:5}р\n<b>Итого:</b>{}р - {}(баллы) = {}р\n'.format(int(delivery), sum, score,sum-score)
-            await sql.add_score(id, 0)
-
-
-
-    return old

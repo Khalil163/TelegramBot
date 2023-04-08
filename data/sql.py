@@ -1,7 +1,6 @@
 import sqlite3 as sq
 
 
-
 def start_basa():
     global base, cur, mod, m_cur, cart, cart_cur, items_cur, db_item
     base = sq.connect('lazzat_menu.db')
@@ -22,7 +21,7 @@ def start_basa():
     base.execute('CREATE TABLE IF NOT EXISTS menu(name TEXT PRIMARY KEY, price INT, item TEXT, stoplist TEXT)')
     base.commit()
     mod.execute('CREATE TABLE IF NOT EXISTS users(name TEXT, id TEXT PRIMARY KEY, access TEXT, number TEXT, long INT, '
-                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT, state_pay TEXT, score INT)')
+                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT, state_pay TEXT)')
     mod.commit()
 
     cart.execute('CREATE TABLE IF NOT EXISTS cart(user_id TEXT, name TEXT, count INT, price INT)')
@@ -85,7 +84,7 @@ async def del_item(data):
 
 
 async def add_user(name, id, access):  # Moders
-    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     mod.commit()
 
 
@@ -227,5 +226,3 @@ async def add_offer(id, offer):
 async def get_offer(id):
     info = m_cur.execute('SELECT * FROM users WHERE id == ?', [id, ]).fetchone()
     return info[9]
-
-
