@@ -16,10 +16,11 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from geopy.distance import geodesic as GD
 from data.p2p_messages import MESSAGES
 from yoomoney import Quickpay, Client
+from aiogram.dispatcher.filters import ContentTypeFilter
 
 tz_tlt = pytz.timezone('Europe/Samara')
 lim1 = time(9, 30)
-lim2 = time(21, 10)
+lim2 = time(23, 50)
 
 
 async def work_time():
@@ -404,6 +405,7 @@ async def cancel_pay(call: types.CallbackQuery):
     await sql.empty_cart(call.from_user.id)
 
 
+
 # @dp.message_handler(state=FSMPickup.bill)
 async def answer_q3(call: types.CallbackQuery):
     data = await sql.get_info(call.message.chat.id)
@@ -442,38 +444,6 @@ async def answer_q3(call: types.CallbackQuery):
         await bot.send_message(call.message.chat.id,
                                MESSAGES['wait_message'], reply_markup=client_kb.kb_state)
 
-    # # if await work_time():
-    #     delivery = (await sql.get_info(message.from_user.id))
-    #     old = await client_kb.check(int(delivery[6]), message.from_user.id)
-    #     num = str(delivery[3])
-    #     if num[0] == '7':
-    #         num = '+' + num
-    #
-
-    #
-    #     if message.text is not None:
-    #         return await bot.send_message(message.from_user.id, 'Отправьте чек!')
-    #
-    #     elif message.photo is not None:
-    #         try:
-    #             msg = await bot.send_photo(chat_id=1176527696, photo=message.photo[-1].file_id,
-    #                                        caption=text, parse_mode='html',
-    #                                        reply_markup=await client_kb.acs_butt(message.from_user.id))
-    #             await sql.add_msg(message.from_user.id, msg.message_id)
-    #         except IndexError:
-    #             msg = await bot.send_document(chat_id=1176527696, document=message.document.file_id,
-    #                                           caption=text, parse_mode='html',
-    #                                           reply_markup=await client_kb.acs_butt(message.from_user.id))
-    #             await sql.add_msg(message.from_user.id, msg.message_id)
-    #
-    #     await bot.send_message(message.from_user.id, 'Проверяем оплату\nПару минут...')
-    #     await state.finish()
-    #
-    # else:
-    #     await message.answer(
-    #         '<b>Режим работы:</b> 09:30 - 22:00\n\nМы не можем сейчас принять заказ.\nНо будем рады в рабочее время!',
-    #         parse_mode='html')
-
 
 # @dp.message_handler(text='Информация')
 async def info_lazzat(message: types.Message):
@@ -483,6 +453,7 @@ async def info_lazzat(message: types.Message):
         '\n\nЭтот бот создан для заказа еды, если есть сомнения позвоните по официальному номеру на сайте и уточните '
         'id бота.\n\n<b>Создатель бота:</b> @ZeRo_163',
         reply_markup=client_kb.kb_info, parse_mode='html')
+
 
 
 def register_handlers_client(dp: Dispatcher):

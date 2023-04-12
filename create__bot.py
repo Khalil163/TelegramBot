@@ -4,7 +4,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 storage = MemoryStorage()
 
-token = "5404349695:AAFgI8VkoN3f_MN_KU5sy8MBlDL3Ob5KsOk"  #'6181491171:AAGBEEO0yIuyAxvs734QPF5IyR75XSgr0Tw'    #
+token = '6181491171:AAGBEEO0yIuyAxvs734QPF5IyR75XSgr0Tw'    #"5404349695:AAFgI8VkoN3f_MN_KU5sy8MBlDL3Ob5KsOk"
 API_TAXI = "y0_AgAAAABopmCxAAVM1QAAAADcWgPySWujxeV4TPKm0HGqeDvLuOO6zpQ"
 api_geo = "bd5a164f-e8d6-436f-a9c1-aadab42637a3"
 client_id = '7c56edc3966247e29a61cf2a00570d51'
