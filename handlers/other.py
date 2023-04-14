@@ -10,7 +10,7 @@ async def echo_send(message: types.Message):
         await message.delete()
         await message.answer(f'{message.from_user.first_name}, Сквернословие - это плохо!!')
     else:
-        await message.answer('Рад, что вы с нами!', reply_markup=client_kb.kb_client)
+        await message.answer('Рад, что вы с нами!', reply_markup=await client_kb.start_kb(message.from_user.id))
 
 
 

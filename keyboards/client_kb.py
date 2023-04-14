@@ -8,15 +8,15 @@ import requests
 from create__bot import API_TAXI
 import json
 from aiogram.types.web_app_info import WebAppInfo
+from data import hms
 
 cb = CallbackData('clt', 'type', 'category', 'product', 'price')
 
+in_ru = InlineKeyboardButton('Русский', callback_data='loc_ru')
+in_uz = InlineKeyboardButton('O\'zbek', callback_data='loc_uz')
+in_tz = InlineKeyboardButton('Тоҷикӣ', callback_data='loc_tz')
 
-
-claim_keyboard = InlineKeyboardMarkup()
-
-claim_keyboard.add(InlineKeyboardButton(text='Проверить оплату',
-                                                    callback_data='clt:claim:-:-:-'))
+locales = InlineKeyboardMarkup(row_width=1).add(in_ru, in_uz, in_tz)
 
 
 async def link(lin):
@@ -65,52 +65,73 @@ async def kb_pkp(id):
 
 
 site = InlineKeyboardButton('Сайт', url='https://lazzat-zhigulevskaja-ulitsa.clients.site')
-site2 = InlineKeyboardButton('Меню',web_app=WebAppInfo(url='https://lazzat-zhigulevskaja-ulitsa.clients.site') )
-#Zero = InlineKeyboardButton('Меню', url='https://sabyget.ru/shop/lazzat/catalog')
+site2 = InlineKeyboardButton('Меню', web_app=WebAppInfo(url='https://lazzat-zhigulevskaja-ulitsa.clients.site'))
+# Zero = InlineKeyboardButton('Меню', url='https://sabyget.ru/shop/lazzat/catalog')
 kb_info = InlineKeyboardMarkup(row_width=1).add(site)
 
 b_state = KeyboardButton('Статус заказа')
 kb_state = ReplyKeyboardMarkup(resize_keyboard=True).add(b_state)
 
-b_menu = KeyboardButton('Меню')
-b_order = KeyboardButton('Заказать')
-b_loc = KeyboardButton('Поделиться 📍', request_location=True)
-b_canc = KeyboardButton('Отмена')
-b_time = KeyboardButton('Информация')
-s_num = KeyboardButton('Поделиться номером', request_contact=True)
-s_loc = KeyboardButton('Поделиться местоположением', request_location=True)
 
-share_num = ReplyKeyboardMarkup(resize_keyboard=True).add(s_num).add(b_canc)
+async def start_kb(id):
+    order = await hms.diff_lang(id, 'order')
+    info = await hms.diff_lang(id, 'info')
 
-in_delivary = InlineKeyboardButton('Доставка', callback_data='Доставка')
-in_self = InlineKeyboardButton('Самовывоз', callback_data='Самовывоз')
-in_choice = InlineKeyboardMarkup(row_width=1).add(in_delivary).add(in_self)
+    b_order = KeyboardButton(order)
+    kb_client = ReplyKeyboardMarkup(resize_keyboard=True)
+    b_time = KeyboardButton(info)
 
-share_loc = ReplyKeyboardMarkup(resize_keyboard=True).add(b_loc).add(b_canc)
+    if id == create__bot.admin_id:
+        return kb_client.add(b_order).add(site2).insert(b_time).add(KeyboardButton('ModerMod'))
 
-kb_client = ReplyKeyboardMarkup(resize_keyboard=True)
-kb_adm = ReplyKeyboardMarkup(resize_keyboard=True)
+    return kb_client.add(b_order).add(site2).insert(b_time)
 
-kb_client.add(b_order).add(site2).insert(b_time)
-kb_adm.add(b_order).add(site2, b_time).add(KeyboardButton('ModerMod'))
 
-ib_right = InlineKeyboardButton('Да', callback_data='loc_right')
-ib_err = InlineKeyboardButton('Нет', callback_data='loc_err')
-kb_right = InlineKeyboardMarkup(row_width=1).row(ib_right, ib_err)
+async def share_kb(id):
+    loc_txt = await hms.diff_lang(id, 'share_loc')
+    canc_txt = await hms.diff_lang(id, 'canc_txt')
+    b_loc = KeyboardButton(loc_txt, request_location=True)
+    b_canc = KeyboardButton(canc_txt)
+    return ReplyKeyboardMarkup(resize_keyboard=True).add(b_loc).add(b_canc)
 
-ib_y = InlineKeyboardButton('Да', callback_data='order_right')
-ib_n = InlineKeyboardButton('Нет', callback_data='order_err')
-draft_kb = InlineKeyboardMarkup(row_width=1).row(ib_y, ib_n)
 
-b_buy = KeyboardButton('Купить')
-b_empty_cart = KeyboardButton('Очистить корзину')
-b_help = KeyboardButton('Отмена')
-kb_order = ReplyKeyboardMarkup(resize_keyboard=True).add(b_buy).row(b_empty_cart, b_help)
+async def share_num(id):
+    sh_num = await hms.diff_lang(id, 'sh_num')
+    canc_txt = await hms.diff_lang(id, 'canc_txt')
+    s_num = KeyboardButton(sh_num, request_contact=True)
+    b_canc = KeyboardButton(canc_txt)
+    return ReplyKeyboardMarkup(resize_keyboard=True).add(s_num).add(b_canc)
 
-score = InlineKeyboardButton('Потратить баллы', callback_data='order_score_minus')
+async def in_choice(id):
+    dry = await hms.diff_lang(id, 'dry')
+    pickup = await hms.diff_lang(id, 'pickup')
+    in_delivary = InlineKeyboardButton(dry, callback_data='Доставка')
+    in_self = InlineKeyboardButton(pickup, callback_data='Самовывоз')
+    return InlineKeyboardMarkup(row_width=1).add(in_delivary).add(in_self)
 
-kb_order2 = InlineKeyboardMarkup().add(score)
-kb_order3 = ReplyKeyboardMarkup(resize_keyboard=True).add(b_empty_cart)
+async def kb_right(id):
+    yes = await hms.diff_lang(id, 'yes')
+    no = await hms.diff_lang(id, 'no')
+    ib_right = InlineKeyboardButton(yes, callback_data='loc_right')
+    ib_err = InlineKeyboardButton(no, callback_data='loc_err')
+    return InlineKeyboardMarkup(row_width=1).row(ib_right, ib_err)
+
+async def draft_kb(id):
+    yes = await hms.diff_lang(id, 'yes')
+    no = await hms.diff_lang(id, 'no')
+    ib_y = InlineKeyboardButton(yes, callback_data='order_right')
+    ib_n = InlineKeyboardButton(no, callback_data='order_err')
+    return InlineKeyboardMarkup(row_width=1).row(ib_y, ib_n)
+
+async def kb_order(id):
+    buy_r = await hms.diff_lang(id, 'buy_r')
+    empty_txt = await hms.diff_lang(id, 'cart_empty')
+    canc_txt = await hms.diff_lang(id, 'canc_txt')
+
+    b_buy = KeyboardButton(buy_r)
+    b_empty_cart = KeyboardButton(empty_txt)
+    b_help = KeyboardButton(canc_txt)
+    return ReplyKeyboardMarkup(resize_keyboard=True).add(b_buy).row(b_empty_cart, b_help)
 
 
 async def items_ikb_clt():  # inline menu for client
@@ -121,25 +142,28 @@ async def items_ikb_clt():  # inline menu for client
     return items_case
 
 
-async def in_plus_menu(filt, data):  # buy
+async def in_plus_menu(filt, data, id):  # buy
     kb_i_menu = InlineKeyboardMarkup(row_width=2)
-
+    min = await hms.diff_lang(id, 'minus')
+    back = await hms.diff_lang(id, 'back')
     for i in data:
         if str(i[2]) == str(filt) and i[3] == 'ЕСТЬ':
             kb_i_menu.insert(
                 InlineKeyboardButton(f'{i[0]} 🔼', callback_data=f'clt:plus:{i[2]}:{i[0]}:{i[1]}'))
-    return kb_i_menu.add(InlineKeyboardButton('Уменьшить', callback_data=f'clt:buy:minus_menu:-:-')). \
-        insert(InlineKeyboardButton('Назад', callback_data='clt:buy:Назад:-:-'))
+    return kb_i_menu.add(InlineKeyboardButton(min, callback_data=f'clt:buy:minus_menu:-:-')). \
+        insert(InlineKeyboardButton(back, callback_data='clt:buy:Назад:-:-'))
 
 
-async def in_minus_menu(filt, data):  # buy
+async def in_minus_menu(filt, data, id):  # buy
     kb_i_menu = InlineKeyboardMarkup(row_width=2)
+    plus = await hms.diff_lang(id, 'plus')
+    back = await hms.diff_lang(id, 'back')
     for i in data:
         if i[2] == filt and i[3] == 'ЕСТЬ':
             kb_i_menu.insert(
                 InlineKeyboardButton(f'{i[0]} 🔽', callback_data=f'clt:minus:{i[2]}:{i[0]}:{i[1]}'))
-    return kb_i_menu.add(InlineKeyboardButton('Увеличить', callback_data='clt:buy:plus_menu:-:-')). \
-        insert(InlineKeyboardButton('Назад', callback_data='clt:buy:Назад:-:-'))
+    return kb_i_menu.add(InlineKeyboardButton(plus, callback_data='clt:buy:plus_menu:-:-')). \
+        insert(InlineKeyboardButton(back, callback_data='clt:buy:Назад:-:-'))
 
 
 async def get_price(user_id):
@@ -249,7 +273,6 @@ async def total_price(id):
         sum += int(i[2]) * int(i[3])
     sum += int(delivery)
     return sum
-
 
 
 async def round_int(val):

@@ -21,7 +21,7 @@ def start_basa():
     base.execute('CREATE TABLE IF NOT EXISTS menu(name TEXT PRIMARY KEY, price INT, item TEXT, stoplist TEXT)')
     base.commit()
     mod.execute('CREATE TABLE IF NOT EXISTS users(name TEXT, id TEXT PRIMARY KEY, access TEXT, number TEXT, long INT, '
-                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT, state_pay TEXT)')
+                'lat INT, delivery INT, msg INT, cat TEXT, offer TEXT, status TEXT, address TEXT, state_pay TEXT, lang TEXT)')
     mod.commit()
 
     cart.execute('CREATE TABLE IF NOT EXISTS cart(user_id TEXT, name TEXT, count INT, price INT)')
@@ -84,7 +84,7 @@ async def del_item(data):
 
 
 async def add_user(name, id, access):  # Moders
-    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    m_cur.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, id, access, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'ru'])
     mod.commit()
 
 
@@ -115,6 +115,10 @@ async def add_num(id, num):
     m_cur.execute('UPDATE users SET number = ? WHERE id == ?', [num,  id])
     mod.commit()
 
+async def add_lang(id, num):
+    m_cur.execute('UPDATE users SET lang = ? WHERE id == ?', [num,  id])
+    mod.commit()
+
 
 async def add_score(id, num):
     m_cur.execute('UPDATE users SET score = ? WHERE id == ?', [num,  id])
@@ -134,6 +138,13 @@ async def add_state(id, state):
 async def get_state(id):
     try:
         info = (m_cur.execute('SELECT status FROM users WHERE id == ?', [id, ]).fetchone())[0]
+        return info
+    except TypeError:
+        return 0
+
+async def get_state_pay(id):
+    try:
+        info = (m_cur.execute('SELECT state_pay FROM users WHERE id == ?', [id, ]).fetchone())[0]
         return info
     except TypeError:
         return 0
@@ -158,6 +169,9 @@ async def get_score(user_id):
 
 async def get_delivery(user_id):
     return (m_cur.execute('SELECT delivery FROM users WHERE id == ?', [user_id]).fetchone())[0]
+
+async def get_lang(user_id):
+    return (m_cur.execute('SELECT lang FROM users WHERE id == ?', [user_id]).fetchone())[0]
 
 async def get_msg(user_id):
     return (m_cur.execute('SELECT msg FROM users WHERE id == ?', [user_id]).fetchone())[0]
