@@ -70,7 +70,7 @@ async def reverse_money(id, amount):
 
     obj = json.loads(rq.text)
     error_code = str(obj['errorCode'])
-
+    print(rq.text)
     if int(error_code) == 0:
         pass
     else:

@@ -69,8 +69,10 @@ site2 = InlineKeyboardButton('Меню', web_app=WebAppInfo(url='https://lazzat-
 # Zero = InlineKeyboardButton('Меню', url='https://sabyget.ru/shop/lazzat/catalog')
 kb_info = InlineKeyboardMarkup(row_width=1).add(site)
 
-b_state = KeyboardButton('Статус заказа')
-kb_state = ReplyKeyboardMarkup(resize_keyboard=True).add(b_state)
+async def kb_state(id):
+    st_kb = await hms.diff_lang(id, 'st_kb')
+    b_state = KeyboardButton(st_kb)
+    return ReplyKeyboardMarkup(resize_keyboard=True).add(b_state)
 
 
 async def start_kb(id):
@@ -277,5 +279,5 @@ async def total_price(id):
 
 async def round_int(val):
     if val % 10 != 0:
-        val = val - (val % 10) + 15
+        val = val - (val % 10) + 10
     return val

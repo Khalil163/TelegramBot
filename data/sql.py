@@ -150,6 +150,14 @@ async def get_state_pay(id):
         return 0
 
 
+async def get_msg(id):
+    try:
+        info = (m_cur.execute('SELECT msg FROM users WHERE id == ?', [id, ]).fetchone())[0]
+        return info
+    except TypeError:
+        return 0
+
+
 async def upp_level(id, access):
     m_cur.execute('UPDATE users SET access = ? WHERE id == ?', [access, id])
     mod.commit()

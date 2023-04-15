@@ -6,7 +6,7 @@ from data import sql
 from create__bot import API_TAXI, client_id, bot
 import uuid
 from keyboards import client_kb
-
+from data import hms
 
 # info = await sql.get_info(id)
 async def draft_order(id):
@@ -163,6 +163,7 @@ async def state_order(id):
 
     offer = await sql.get_offer(id)
 
+
     rq = requests.post(f'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/info?claim_id={offer}',
                        headers={"Authorization": f'Bearer {API_TAXI}', 'Accept-Language': 'ru'})
     #print('status: ',rq, rq.text)
@@ -171,16 +172,14 @@ async def state_order(id):
         a = str(obj['route_points'][0]['visit_status'])
 
         if a == 'skipped':
-            a = 'Заказ <b>отменен</b>'
+            a = await hms.diff_lang(id, 'skipped')
         elif a == 'pending':
-            a = '<b>Ищем курьера</b>'
-        elif a == 'arrived':
-            a = 'Курьер <b>ожидает</b>'
-        elif a == 'visited':
-            a = 'Курьер уже <b>в пути</b>'
+            a = await hms.diff_lang(id, 'pending')
+        elif a in ['arrived', 'visited']:
+            a = await hms.diff_lang(id, 'visited')
         return a
     except Exception:
-        pass
+        return '...'
 
 
 # async def sharing_link(id):

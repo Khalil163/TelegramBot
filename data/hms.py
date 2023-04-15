@@ -57,7 +57,17 @@ RU = {
     'cart_empty': "Очистить корзину",
     'minus': "Уменьшить",
     'plus': 'Увеличивать',
-    'back': 'Назад'
+    'back': 'Назад',
+    'scs_txt': 'Оплата подтверждена!\nВаш заказ принят!',
+    'acc_txt': "<b>Мы стараемся, чтобы ваш заказ был приготовлен как можно быстрее!</b>\n\nДоставка заказа займет от 15 мин",
+    'srr_txt': 'Извините, ваш заказ был отменен Позвоните: +79649687004',
+    'await_pickup': 'Ожидает выдачи',
+    'thank_txt': "Благодарим за заказ.\nПриятного аппетита!",
+    'st_kb': 'Статус заказа',
+    "skipped": 'Курьер отменен',
+    'pending': '<b>Ищем курьера</b>',
+    'visited': 'Курьер уже в пути'
+
 }
 
 UZ = {
@@ -100,7 +110,17 @@ UZ = {
     'cart_empty': "Buyurtmani tozalash",
     'minus': "Kamaytirish",
     'plus': "Ko'paytirish",
-    'back': "Orqaga"
+    'back': "Orqaga",
+    'scs_txt': "To'lov tasdiqlandi!\nSizning buyurtmangiz qabul qilindi!",
+    'acc_txt': '<b>Biz sizning buyurtmangizni iloji boricha tezroq pishirishga harakat qilamiz!</b>\n\nBuyurtmani etkazib berish 15 daqiqadan boshlanadi',
+    'srr_txt': "Kechirasiz, buyurtmangiz bekor qilindi qo'ng'iroq qiling: +79649687004",
+    'await_pickup': 'Chiqarishni kutmoqda',
+    'thank_txt': "Buyurtma uchun rahmat.\nYoqimli ishtaha!",
+    'st_kb': "Buyurtma holati",
+    'skipped': "Buyurtma <b>to'xtatildi</b>",
+    'pending': "<b>Biz kurerni qidirmoqdamiz</b>",
+    'visited': "Kuryer yo'lda"
+
 }
 
 TZ = {
@@ -144,5 +164,15 @@ TZ = {
     'cart_empty': "Фармоишро тоза кунед",
     'minus': 'Redusí',
     "plus": "Aumenta",
-    'back': 'Atrás'
+    'back': 'Atrás',
+    'scs_txt': "Пардохт тасдиқ карда шуд!\nФармоиши шумо қабул карда шуд!",
+    'acc_txt': "<b>Мо кӯшиш мекунем, ки фармоиши шумо ҳарчи зудтар омода карда шавад!</b>\n\nБарои расонидани фармоиш аз 15 дақиқа вақт лозим аст",
+    'srr_txt': "Бубахшед, фармоиши шумо қатъ карда шуд .Занг занед: +79649687004",
+    'await_pickup': 'Интизори додани',
+    'thank_txt': 'Ташаккур барои фармоиш.\nИштиҳои хуб!',
+    'st_kb': "Статуси фармоиш",
+    'skipped': 'Фармоиш <b>боздошта шуд </b>',
+    "pending": '<b>Чустуҷӯи хаткашон</b>',
+    'visited': 'Хаткашон дар роҳ аст'
+
 }

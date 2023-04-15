@@ -12,7 +12,6 @@ from create__bot import api_geo, dp
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from geopy.distance import geodesic as GD
-from data.p2p_messages import MESSAGES
 from data import sber, hms
 
 tz_tlt = pytz.timezone('Europe/Samara')
@@ -29,26 +28,26 @@ async def work_time():
         return False
 
 
-class FSMUsers(StatesGroup):
-    load = State()
-    start = State()
-    loc = State()
-    number = State()
-
-
-class FSMPickup(StatesGroup):
-    start = State()
-    bill = State()
-
 class orderState(StatesGroup):
+    lang = State()
+    format_order = State()
+    choice_delivery = State()
+    choice_pickup = State()
+    set_loc = State()
+    num = State()
+    set_nm = State()
+    menu = State()
+    ask_order = State()
+    get_order = State()
     wait = State()
 
 
 cb = client_kb.cb
 
 
+
 # @dp.message_handler(commands=['start', 'help'])
-async def hi_send(message: types.Message):
+async def hi_send(message: types.Message, state: FSMContext):
     # await menu.write_menu()
     if await sql.is_moder(message.from_user.id) is False:
         await sql.add_user(message.from_user.first_name, message.from_user.id, 'client')
@@ -57,12 +56,11 @@ async def hi_send(message: types.Message):
     text = await hms.diff_lang(message.from_user.id, 'hi')
     await message.answer(text.format(message.from_user.first_name),
                          reply_markup=await client_kb.start_kb(message.from_user.id))
-    await message.answer('Выберите язык:', reply_markup=client_kb.locales)
+    msg = await message.answer('Выберите язык:', reply_markup=client_kb.locales)
+    await sql.add_msg(message.from_user.id, msg.message_id)
 
 
-
-
-# @dp.callback_query_handler(Text(startswith='loc'))
+# @dp.callback_query_handler(Text(startswith='loc')) #FSM - lang
 async def set_lang(call: types.CallbackQuery):
     lang = call.data.split('_')[1]
 
@@ -82,22 +80,25 @@ async def set_lang(call: types.CallbackQuery):
                                   reply_markup=await client_kb.start_kb(call.from_user.id))
 
 
+
+
 async def del_twice_message(id):
     try:
-        msg = (await sql.get_info(id))[7]
+        msg = await sql.get_msg(id)
         msg1 = str(msg).split('x')[0]
         msg2 = str(msg).split('x')[1]
         await bot.delete_message(chat_id=id, message_id=msg1)
         await bot.delete_message(chat_id=id, message_id=msg2)
     except Exception as e:
         try:
-            msg = (await sql.get_info(id))[7]
+            msg = await sql.get_msg(id)
             await bot.delete_message(chat_id=id, message_id=msg)
         except Exception as e:
             pass
 
 
-async def ask_buy(message: types.Message):
+# FSM - format_order
+async def ask_buy(message: types.Message, state: FSMContext):
     if not await work_time():
         text = await hms.diff_lang(message.from_user.id, 'time_out')
         return await message.answer(
@@ -107,10 +108,17 @@ async def ask_buy(message: types.Message):
     if await sql.is_moder(message.from_user.id) is False:
         await sql.add_user(message.from_user.first_name, message.from_user.id, 'client')
 
+
+
+    await del_twice_message(message.from_user.id)
+
     text = await hms.diff_lang(message.from_user.id, 'format_order')
-    await message.answer(text, reply_markup=await client_kb.in_choice(message.from_user.id))
+    msg = await message.answer(text, reply_markup=await client_kb.in_choice(message.from_user.id))
+    await sql.add_msg(message.from_user.id, msg.message_id)
+    await orderState.choice_delivery.set()
 
 
+# FSM - choice_delivery
 # @dp.callback_query_handler(text='Доставка')
 async def get_loc(call: types.CallbackQuery):
     if not await work_time():
@@ -126,9 +134,10 @@ async def get_loc(call: types.CallbackQuery):
     await bot.send_message(call.from_user.id, text)
     await bot.send_message(call.from_user.id, text2,
                            reply_markup=await client_kb.share_kb(call.from_user.id))
-    await FSMUsers.load.set()
+    await orderState.set_loc.set()
 
 
+# FSM - set_loc
 # @dp.message_handler(content_types=['location'])
 async def set_loc(message: types.Message, state: FSMContext):
     if not await work_time():
@@ -154,7 +163,7 @@ async def set_loc(message: types.Message, state: FSMContext):
             delivery = int(await client_kb.get_price(message.from_user.id))
             await sql.add_deliv(message.from_user.id, delivery)
 
-            await FSMUsers.start.set()
+            await orderState.num.set()
         else:
             return await message.answer(loc_out)
 
@@ -171,7 +180,7 @@ async def set_loc(message: types.Message, state: FSMContext):
         delivery = int(await client_kb.get_price(message.from_user.id))
         await sql.add_deliv(message.from_user.id, delivery)
 
-        await FSMUsers.start.set()
+        await orderState.num.set()
 
 
 async def cancel_hand(message: types.Message, state: FSMContext):
@@ -203,7 +212,7 @@ async def right_num(call: types.CallbackQuery, state: FSMContext):
         await bot.send_message(call.from_user.id, loc_yes)
         await bot.send_message(call.from_user.id, get_num,
                                reply_markup=await client_kb.share_num(call.from_user.id))
-        await FSMUsers.number.set()
+        await orderState.set_nm.set()
     else:
         await call.answer()
         await call.message.edit_reply_markup()
@@ -211,7 +220,7 @@ async def right_num(call: types.CallbackQuery, state: FSMContext):
         get_loc = await hms.diff_lang(call.from_user.id, 'get_loc')
         await bot.send_message(call.from_user.id, loc_no)
         await bot.send_message(call.from_user.id, get_loc, reply_markup=await client_kb.share_kb(call.from_user.id))
-        await FSMUsers.load.set()
+        await orderState.set_loc.set()
 
 
 async def set_num(message: types.Message, state: FSMContext):
@@ -234,7 +243,7 @@ async def set_num(message: types.Message, state: FSMContext):
             msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
             await sql.add_msg(message.from_user.id, msg_cart.message_id)
 
-            await state.finish()
+            await orderState.menu.set()
 
         else:
             num_err = await hms.diff_lang(message.from_user.id, 'num_err')
@@ -247,11 +256,11 @@ async def set_num(message: types.Message, state: FSMContext):
 
         msg_cart = await message.answer('Меню: ', reply_markup=await client_kb.items_ikb_clt())
         await sql.add_msg(message.from_user.id, msg_cart.message_id)
-        await state.finish()
+        await orderState.menu.set()
 
 
 # @dp.register_callback_query_handler(lambda call: call.data.startswith('client'))
-async def show_menu(call: types.CallbackQuery, callback_data: dict):
+async def show_menu(call: types.CallbackQuery, callback_data: dict, state: FSMContext):
     if not await work_time():
         text = await hms.diff_lang(call.from_user.id, 'time_out')
         return await call.message.answer(text,
@@ -272,14 +281,16 @@ async def show_plus_minus(call: types.CallbackQuery, callback_data: dict):
         wait = await sql.sql_read_menu()
         category = await sql.get_info(call.from_user.id)
         category = str(category[8])
-        await call.message.edit_reply_markup(reply_markup=await client_kb.in_minus_menu(category, wait, call.from_user.id))
+        await call.message.edit_reply_markup(
+            reply_markup=await client_kb.in_minus_menu(category, wait, call.from_user.id))
         await call.answer()
 
     elif callback_data.get('category') == 'plus_menu':
         wait = await sql.sql_read_menu()
         category = await sql.get_info(call.from_user.id)
         category = category[8]
-        await call.message.edit_reply_markup(reply_markup=await client_kb.in_plus_menu(category, wait, call.from_user.id))
+        await call.message.edit_reply_markup(
+            reply_markup=await client_kb.in_plus_menu(category, wait, call.from_user.id))
         await call.answer()
 
 
@@ -299,7 +310,8 @@ async def add_cart(call: types.CallbackQuery, callback_data: dict):
     cart_text = await hms.diff_lang(call.from_user.id, 'cart')
     await bot.edit_message_text(chat_id=call.from_user.id, message_id=msg_cart,
                                 text=f'<b>{cart_text}</b> \n{old}\n<b>Меню:</b>', parse_mode='html',
-                                reply_markup=await client_kb.in_plus_menu(callback_data.get('category'), wait, call.from_user.id))
+                                reply_markup=await client_kb.in_plus_menu(callback_data.get('category'), wait,
+                                                                          call.from_user.id))
 
 
 async def minus_cart(call: types.CallbackQuery, callback_data: dict):
@@ -320,7 +332,8 @@ async def minus_cart(call: types.CallbackQuery, callback_data: dict):
         cart_text = await hms.diff_lang(call.from_user.id, 'cart')
         await bot.edit_message_text(chat_id=call.from_user.id, message_id=msg_cart,
                                     text=f'{cart_text} \n{old}\n<b>Меню:</b>', parse_mode='html',
-                                    reply_markup=await client_kb.in_minus_menu(callback_data.get('category'), wait, call.from_user.id))
+                                    reply_markup=await client_kb.in_minus_menu(callback_data.get('category'), wait,
+                                                                               call.from_user.id))
     else:
         await call.answer()
 
@@ -336,13 +349,13 @@ async def empty_cart(message: types.Message):
     await sql.empty_cart(message.from_user.id)
 
 
-async def deliv_self(call: types.CallbackQuery):
+async def deliv_self(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
     await sql.add_deliv(call.from_user.id, 0)
     text = await hms.diff_lang(call.from_user.id, 'get_num')
     await bot.send_message(call.from_user.id, text, reply_markup=await client_kb.share_num(call.from_user.id))
     await call.answer()
-    await FSMUsers.number.set()
+    await orderState.set_nm.set()
 
 
 async def draft_buy(message: types.Message):
@@ -374,13 +387,15 @@ async def draft_buy(message: types.Message):
         msg1 = await bot.send_message(message.from_user.id, f'<b>{order_txt}</b>\n\n{old}', parse_mode='html',
                                       )
     ask_order = await hms.diff_lang(message.from_user.id, 'ask_order')
-    msg = await bot.send_message(message.from_user.id, ask_order, reply_markup=await client_kb.draft_kb(message.from_user.id))
+    msg = await bot.send_message(message.from_user.id, ask_order,
+                                 reply_markup=await client_kb.draft_kb(message.from_user.id))
     total = f'{msg.message_id}x{msg1.message_id}'
     await sql.add_msg(message.from_user.id, total)
+    await orderState.ask_order.set()
 
 
 # @dp.callback_query_handler(Text(startswith='order'), state=None)
-async def ask_pay(call: types.CallbackQuery):
+async def ask_pay(call: types.CallbackQuery, state: FSMContext):
     if not await work_time():
         text = await hms.diff_lang(call.from_user.id, 'time_out')
         return await call.message.answer(text,
@@ -411,8 +426,10 @@ async def ask_pay(call: types.CallbackQuery):
                                    reply_markup=claim_keyboard, parse_mode='html')
         await call.answer()
         await sql.add_msg(call.from_user.id, msg.message_id)
+        await orderState.get_order.set()
 
     else:
+        await state.finish()
         text = await hms.diff_lang(call.from_user.id, 'order_canc')
         await call.message.delete()
         await bot.send_message(call.from_user.id, text,
@@ -423,13 +440,14 @@ async def ask_pay(call: types.CallbackQuery):
 
 
 # @dp.callback_query_handler(text='cancel_pay')
-async def cancel_pay(call: types.CallbackQuery):
+async def cancel_pay(call: types.CallbackQuery, state: FSMContext):
     await del_twice_message(call.from_user.id)
     text = await hms.diff_lang(call.from_user.id, 'order_canc')
     await call.message.answer(text, reply_markup=await client_kb.start_kb(call.from_user.id))
     await sql.add_state(call.from_user.id, 0)
     await sql.add_state_pay(call.from_user.id, 0)
     await sql.empty_cart(call.from_user.id)
+    await state.finish()
 
 
 # @dp.message_handler(state=FSMPickup.bill)
@@ -453,8 +471,9 @@ async def answer_q3(call: types.CallbackQuery, state: FSMContext):
 
     if int(state_pay) == 2:
         await bot.delete_message(chat_id=call.from_user.id, message_id=call.message.message_id)
+        scs_txt = await hms.diff_lang(call.from_user.id, 'scs_txt')
         await bot.send_message(call.message.chat.id,
-                               MESSAGES['successful_payment'], reply_markup=client_kb.kb_state)
+                               scs_txt, reply_markup=await client_kb.kb_state(call.from_user.id))
         msg = await bot.send_message(chat_id=create__bot.admin_id, text=text,
                                      reply_markup=await client_kb.acs_butt(call.from_user.id), parse_mode='html')
         await sql.add_msg(call.from_user.id, msg.message_id)
@@ -463,8 +482,8 @@ async def answer_q3(call: types.CallbackQuery, state: FSMContext):
         await orderState.wait.set()
     else:
         text = await hms.diff_lang(call.from_user.id, 'wait_pay')
-        await bot.send_message(call.message.chat.id,
-                               text, reply_markup=client_kb.kb_state)
+        return await bot.send_message(call.message.chat.id,
+                                      text, reply_markup=await client_kb.kb_state(call.from_user.id))
 
 
 # @dp.message_handler(text='Информация')
@@ -478,26 +497,29 @@ async def info_lazzat(message: types.Message):
 
 
 def register_handlers_client(dp: Dispatcher):
-    dp.register_message_handler(hi_send,
-                                lambda message: message.text in ['/start', '/help', 'Режим клиента', 'Привет', 'Hi',
-                                                                 'Здравствуйте', 'Назад'])
-    dp.register_callback_query_handler(set_lang,Text(startswith='loc'))
-    dp.register_callback_query_handler(get_loc, text='Доставка', state=None)
-    dp.register_callback_query_handler(deliv_self, text='Самовывоз', state=None)
     dp.register_message_handler(cancel_hand, state="*", commands='Отмена')
     dp.register_message_handler(cancel_hand, Text(equals=['отмена', "To'xtatish", "Бас кунед"], ignore_case=True),
                                 state="*")
-    dp.register_message_handler(set_loc, content_types=['location', 'text'], state=FSMUsers.load)
-    dp.register_callback_query_handler(right_num, text=['loc_err', 'loc_right'], state=FSMUsers.start)
-    dp.register_message_handler(set_num, content_types=['contact', 'text'], state=FSMUsers.number)
-    dp.register_callback_query_handler(show_menu, cb.filter(type='show_clt_item'))
-    dp.register_callback_query_handler(show_plus_minus, cb.filter(type='buy'))
-    dp.register_callback_query_handler(add_cart, cb.filter(type='plus'))
-    dp.register_callback_query_handler(minus_cart, cb.filter(type='minus'))
-    dp.register_callback_query_handler(answer_q3, cb.filter(type='claim'), state=None)
-    dp.register_callback_query_handler(ask_pay, Text(startswith='order'))
-    dp.register_message_handler(empty_cart, text=['Очистить корзину', "Фармоишро тоза кунед", "Buyurtmani tozalash"])
-    dp.register_message_handler(ask_buy, text=['Заказать', 'Фармоиш', 'Buyurtma'])
-    dp.register_message_handler(draft_buy, text=['Купить', 'Харид', "Sotib olish"])
-    dp.register_callback_query_handler(cancel_pay, text='cancel_pay')
-    dp.register_message_handler(info_lazzat, text=['Информация', "Ma'lumot", 'Маълумот'])
+
+    dp.register_message_handler(hi_send,
+                                lambda message: message.text in ['/start', '/help', 'Режим клиента', 'Привет', 'Hi',
+                                                                 'Здравствуйте', 'Назад'], state=None)
+    dp.register_callback_query_handler(set_lang, Text(startswith='loc'), state=None)
+    dp.register_message_handler(ask_buy, text=['Заказать', 'Фармоиш', 'Buyurtma'], state=None)
+    dp.register_callback_query_handler(get_loc, text='Доставка', state=orderState.choice_delivery)
+    dp.register_callback_query_handler(deliv_self, text='Самовывоз', state=orderState.choice_delivery)
+    dp.register_message_handler(set_loc, content_types=['location', 'text'], state=orderState.set_loc)
+    dp.register_callback_query_handler(right_num, text=['loc_err', 'loc_right'], state=orderState.num)
+    dp.register_message_handler(set_num, content_types=['contact', 'text'], state=orderState.set_nm)
+    dp.register_callback_query_handler(show_menu, cb.filter(type='show_clt_item'), state=orderState.menu)
+    dp.register_callback_query_handler(show_plus_minus, cb.filter(type='buy'), state=orderState.menu)
+    dp.register_callback_query_handler(add_cart, cb.filter(type='plus'), state=orderState.menu)
+    dp.register_callback_query_handler(minus_cart, cb.filter(type='minus'), state=orderState.menu)
+    dp.register_message_handler(draft_buy, text=['Купить', 'Харид', "Sotib olish"], state=orderState.menu)
+    dp.register_message_handler(empty_cart, text=['Очистить корзину', "Фармоишро тоза кунед", "Buyurtmani tozalash"],
+                                state=orderState.menu)
+    dp.register_callback_query_handler(ask_pay, Text(startswith='order'), state=orderState.ask_order)
+    dp.register_callback_query_handler(answer_q3, cb.filter(type='claim'), state=orderState.get_order)
+    dp.register_callback_query_handler(cancel_pay, text='cancel_pay', state=orderState.get_order)
+    dp.register_message_handler(info_lazzat, text=['Информация', "Ma'lumot", 'Маълумот'], state='*')
+

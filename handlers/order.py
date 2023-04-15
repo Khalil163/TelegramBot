@@ -25,9 +25,8 @@ async def access(call: types.CallbackQuery, callback_data: dict, state: FSMConte
         if price > 0:
             text = f'<b>Доставка:</b>\n{old}\n<b>Адрес:</b> {locate}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ ' \
                    f'готовится '
-            await bot.send_message(id, '<b>Мы стараемся, чтобы ваш заказ был приготовлен как можно '
-                                       'быстрее!</b>\n\nДоставка заказа займет от 15 мин', reply_markup=
-                                   client_kb.kb_state, parse_mode='html')
+            acc_txt = await hms.diff_lang(id, 'acc_txt')
+            await bot.send_message(id, acc_txt, reply_markup= await client_kb.kb_state(id), parse_mode='html')
             await bot.edit_message_text(text, call.from_user.id, message_id=msg,
                                         reply_markup=await client_kb.express(id), parse_mode='html')
 
@@ -37,7 +36,7 @@ async def access(call: types.CallbackQuery, callback_data: dict, state: FSMConte
                                         reply_markup=await client_kb.fd_ready(id), parse_mode='html')
             await bot.send_message(id, '<b>Мы стараемся, чтобы ваш заказ был приготовлен как можно быстрее!</b>\n\nМы '
                                        'сообщим как будет всё готово.',
-                                   reply_markup=client_kb.kb_state, parse_mode='html')
+                                   reply_markup=await client_kb.kb_state(id), parse_mode='html')
     else:
         sum = await client_kb.total_price(id)
 
@@ -50,7 +49,8 @@ async def access(call: types.CallbackQuery, callback_data: dict, state: FSMConte
             text = f'<b>Cамовывоз:</b>\n{old}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ отменен'
             await bot.edit_message_text(text, call.from_user.id, message_id=msg,
                                         parse_mode='html')
-        await bot.send_message(id, 'Извините, ваш заказ был отменен\nПозвоните: +79649687004',
+        srr_txt = await hms.diff_lang(id, 'srr_txt')
+        await bot.send_message(id, srr_txt,
                                reply_markup=await client_kb.start_kb(call.from_user.id))
 
         await sber.reverse_money(id, sum)
@@ -96,6 +96,7 @@ async def canc_taxi(call: types.CallbackQuery, callback_data: dict):
     msg = int(delivery[7])
     old = await client_kb.check(int(delivery[6]), id)
     num = str(delivery[3])
+
     state = await req_api.state_order(id)
 
     await sql.add_state(id, state)
@@ -121,7 +122,8 @@ async def ready(call: types.CallbackQuery, callback_data: dict):
     msg = int(delivery[7])
     old = await client_kb.check(int(delivery[6]), id)
     num = str(delivery[3])
-    state = 'Ожидает выдачи'
+
+    state = await hms.diff_lang(id, 'await_pickup')
 
     await sql.add_state(id, state)
     await sql.add_state_pay(id, 0)
@@ -131,7 +133,7 @@ async def ready(call: types.CallbackQuery, callback_data: dict):
 
     text = f'<b>Cамовывоз:</b>\n{old}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Ожидает выдачи...'
 
-    await bot.send_message(id, '<b>Ваш заказ готов!</b>', parse_mode='html')
+    await bot.send_message(id, f'<b>Заказ: {state}</b>', parse_mode='html')
     await bot.edit_message_text(text, call.from_user.id, message_id=msg,
                                 reply_markup=await client_kb.kb_pkp(id), parse_mode='html')
 
@@ -155,8 +157,11 @@ async def ready_dv(call: types.CallbackQuery, callback_data: dict, state: FSMCon
 
     await bot.edit_message_text(text, call.from_user.id, message_id=msg, parse_mode='html')
     await call.answer('Заказ завершен')
-    await bot.send_message(id, 'Благодарим за заказ.\nПриятного аппетита!', reply_markup=await client_kb.start_kb(call.from_user.id))
+    thank_txt = await hms.diff_lang(id, 'thank_txt')
+    await bot.send_message(id, thank_txt, reply_markup=await client_kb.start_kb(call.from_user.id))
     await sql.empty_cart(id)
+    await sql.add_state(id, 0)
+    await sql.add_deliv(id, 0)
     await state.finish()
 
 
@@ -172,7 +177,8 @@ async def ready_pkp(call: types.CallbackQuery, callback_data: dict, state: FSMCo
         num = '+' + num
 
     text = f'<b>Cамовывоз:</b>\n{old}\n<b>Тел:</b> {num}\n\n<b>Статус:</b> Заказ завершен'
-    await bot.send_message(id, 'Спасибо за заказ!\nБудем ждать вас снова!', reply_markup=await client_kb.start_kb(call.from_user.id))
+    thank_txt = await hms.diff_lang(id, 'thank_txt')
+    await bot.send_message(id, thank_txt, reply_markup=await client_kb.start_kb(call.from_user.id))
     await bot.edit_message_text(text, call.from_user.id, message_id=msg, parse_mode='html')
     await call.answer('Заказ завершен')
     await sql.empty_cart(id)
@@ -180,14 +186,23 @@ async def ready_pkp(call: types.CallbackQuery, callback_data: dict, state: FSMCo
     await sql.add_state_pay(id, 0)
     await state.finish()
 
+
 # @dp.message_handler(text='Статус заказа')
-async def state_order(message: types.Message, state: FSMContext):
-    if message.text == 'Статус заказа':
-        state = str(await sql.get_state(message.from_user.id))
-        await message.answer(f'<b>Статус заказа:</b> {state}', parse_mode='html')
+async def state_order(message: types.Message):
+    if message.text == 'Статус заказа' or message.text == 'Buyurtma holati' or message.text == 'Статуси фармоиш':
+        if await sql.get_delivery(message.from_user.id) > 0:
+            state = await sql.get_state(message.from_user.id)
+        else:
+            state = await req_api.state_order(message.from_user.id)
+        sts_txt = await hms.diff_lang(message.from_user.id, 'st_kb')
+        await message.answer(f'<b>{sts_txt}:</b> {state}', parse_mode='html')
     else:
         text = await hms.diff_lang(message.from_user.id, 'sorry')
         await message.answer(text, parse_mode='html')
+
+
+async def error_handler(message: types.Message):
+    msg = await message.answer('Пожалуйста нажимайте кнопки или вводите данные:')
 
 
 def register_handlers_order(dp: Dispatcher):
@@ -198,3 +213,4 @@ def register_handlers_order(dp: Dispatcher):
     dp.register_callback_query_handler(ready_dv, cb.filter(type='dv_finish'), state="*")
     dp.register_callback_query_handler(ready_pkp, cb.filter(type='pkp_finish'), state="*")
     dp.register_message_handler(state_order, state=orderState.wait)
+    dp.register_message_handler(error_handler, state="*")
