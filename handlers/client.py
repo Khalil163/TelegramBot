@@ -16,7 +16,7 @@ from data import sber, hms
 
 tz_tlt = pytz.timezone('Europe/Samara')
 lim1 = time(9, 15)
-lim2 = time(23, 50)
+lim2 = time(22, 0)
 sber_photo = 'AgACAgIAAxkDAAIHV2Q5iS1yosadm_pOkBr0HoFmpNmZAAKJyTEbIK3JSbbsIO2UZs_AAQADAgADcwADLwQ'
 
 
@@ -43,7 +43,6 @@ class orderState(StatesGroup):
 
 
 cb = client_kb.cb
-
 
 
 # @dp.message_handler(commands=['start', 'help'])
@@ -74,12 +73,10 @@ async def set_lang(call: types.CallbackQuery):
         await sql.add_lang(call.from_user.id, 'uz')
         await call.message.answer('OK, men o\'zbek tilida gaplashishga harakat qilaman',
                                   reply_markup=await client_kb.start_kb(call.from_user.id))
-    elif lang == 'tz':
+    elif lang == 'tg':
         await sql.add_lang(call.from_user.id, 'tz')
         await call.message.answer('Хуб, ман кӯшиш мекунам, ки бо забони тоҷикӣ сӯҳбат кунам.',
                                   reply_markup=await client_kb.start_kb(call.from_user.id))
-
-
 
 
 async def del_twice_message(id):
@@ -107,8 +104,6 @@ async def ask_buy(message: types.Message, state: FSMContext):
 
     if await sql.is_moder(message.from_user.id) is False:
         await sql.add_user(message.from_user.first_name, message.from_user.id, 'client')
-
-
 
     await del_twice_message(message.from_user.id)
 
@@ -171,7 +166,8 @@ async def set_loc(message: types.Message, state: FSMContext):
         locate = Yandex(api_key=api_geo).geocode(f'{message.text}, Тольятти, Россия')
         point2 = (locate.latitude, locate.longitude)
 
-        if GD(point1, point2) >= 25 or str(locate.address).split(',')[0] == 'Тольятти':
+        if GD(point1, point2) >= 25 or str(locate.address).split(',')[0] == 'Тольятти' or (
+                str(locate.address).split(',')[1]).replace(' ', '').isdigit() == False:
             return await message.answer(loc_out)
 
         await message.answer(text.format(locate.address), reply_markup=await client_kb.kb_right(message.from_user.id))
@@ -185,16 +181,11 @@ async def set_loc(message: types.Message, state: FSMContext):
 
 async def cancel_hand(message: types.Message, state: FSMContext):
     to_state = await state.get_state()
-    if to_state is None:
-        await del_twice_message(message.from_user.id)
-        await sql.add_state(message.from_user.id, 0)
-        await sql.empty_cart(message.from_user.id)
-        text = await hms.diff_lang(message.from_user.id, 'canc_text')
-        return await message.answer(text, reply_markup=await client_kb.start_kb(message.from_user.id))
-    if await sql.is_moder(message.from_user.id) == 'admin':
-        await message.answer('ОК', reply_markup=await client_kb.start_kb(message.from_user.id))
-    else:
-        await message.answer('ОК', reply_markup=await client_kb.start_kb(message.from_user.id))
+    await del_twice_message(message.from_user.id)
+    await sql.add_state(message.from_user.id, 0)
+    await sql.empty_cart(message.from_user.id)
+    text = await hms.diff_lang(message.from_user.id, 'canc_text')
+    await message.answer(text, reply_markup=await client_kb.start_kb(message.from_user.id))
     await state.finish()
 
 
@@ -446,6 +437,7 @@ async def cancel_pay(call: types.CallbackQuery, state: FSMContext):
     await call.message.answer(text, reply_markup=await client_kb.start_kb(call.from_user.id))
     await sql.add_state(call.from_user.id, 0)
     await sql.add_state_pay(call.from_user.id, 0)
+    await sql.add_deliv(call.from_user.id, 0)
     await sql.empty_cart(call.from_user.id)
     await state.finish()
 
@@ -522,4 +514,3 @@ def register_handlers_client(dp: Dispatcher):
     dp.register_callback_query_handler(answer_q3, cb.filter(type='claim'), state=orderState.get_order)
     dp.register_callback_query_handler(cancel_pay, text='cancel_pay', state=orderState.get_order)
     dp.register_message_handler(info_lazzat, text=['Информация', "Ma'lumot", 'Маълумот'], state='*')
-

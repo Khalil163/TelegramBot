@@ -16,7 +16,6 @@ async def url_pay(id, sum):
 
     letters_and_digits = string.ascii_lowercase + string.digits
     orderNumber = ''.join(random.sample(letters_and_digits, 10))
-
     data = {
         'userName': login,
         'password': password,
@@ -69,7 +68,6 @@ async def reverse_money(id, amount):
                        verify=False)
 
     obj = json.loads(rq.text)
-    error_code = str(obj['errorCode'])
     print(rq.text)
     if int(error_code) == 0:
         pass

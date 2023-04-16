@@ -83,7 +83,7 @@ async def start_kb(id):
     kb_client = ReplyKeyboardMarkup(resize_keyboard=True)
     b_time = KeyboardButton(info)
 
-    if id == create__bot.admin_id:
+    if str(id) == str(create__bot.admin_id):
         return kb_client.add(b_order).add(site2).insert(b_time).add(KeyboardButton('ModerMod'))
 
     return kb_client.add(b_order).add(site2).insert(b_time)
@@ -279,5 +279,7 @@ async def total_price(id):
 
 async def round_int(val):
     if val % 10 != 0:
-        val = val - (val % 10) + 10
+        val = val - (val % 10) + 15
+    else:
+        val += 15
     return val
